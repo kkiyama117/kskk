@@ -40,7 +40,7 @@ Leads follow the kstack `card-flow` skill: `/data/softwares/kstack/skills/card-f
 Routes:
 
 - Worker and ambiguity review: `dsh ollama-cloud deepseek-v4.1-flash high`.
-- Second review: `skk-manager` (Claude) reviews any diff that touches a contract, the split between public and private data, a migration, or security, because the leads now run on the same model family as `gpt-6.1-sol`. A different family on DSH may replace this later.
+- Second review: `dsh google gemini-3.1-pro-preview high`, read-only, a model family different from both the leads (OpenAI) and the workers (DeepSeek). The lead asks `skk-manager` to run it. Until the first heavy diff (a contract, the split between public and private data, a migration, or security) has been reviewed by both Gemini and `skk-manager`, `skk-manager` reviews it too, and `local/agents/metrics.md` records the real defects and misses of each.
 - Read-only roles (ambiguity, review, research) start with `run-worker.sh --read-only`.
 
 ### Card flow adapter
