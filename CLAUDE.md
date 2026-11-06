@@ -8,7 +8,7 @@ Docs for the owner (ADRs, design notes, research summaries, questions) are in Ja
 
 The manager is `skk-manager`, a Claude session in herdr (session `skk`, workspace `skk`). It talks to the owner, briefs the leads, drives each lead's turns, starts every DSH worker, orders lands, and files issues. It writes no code and no cards.
 
-Since 2026-11-06 the leads are DSH sessions, not Claude sessions, to save cost (the owner's instruction). `skk-manager` advances each lead one turn at a time with `dsh headless --session-id <id>`, and the lead's final answer is its report. Lead sessions, their routes, and their briefs are listed in `local/agents/leads.md`. The rules in `local/agents/briefs/dsh-lead-rules-2026-11-06.md` apply to every lead.
+Since 2026-11-06 the leads are DSH sessions, not Claude sessions, to save cost (the owner's instruction). `skk-manager` advances each lead one turn at a time with kstack `run-worker.sh --session-id <id> ... -- <workdir> dsh openai-codex gpt-6.1-sol high`, and the lead's final answer is its report. `run-worker.sh` refuses any workdir or `--add-dir` that overlaps the DSH home (`~/.dsh`). Lead sessions, their routes, and their briefs are listed in `local/agents/leads.md`. The rules in `local/agents/briefs/dsh-lead-rules-2026-11-06.md` apply to every lead.
 
 Above the manager, `kstack-manager` in the herdr `default` session coordinates the managers of every project. Reach it with `herdr --session default agent prompt kstack-manager "skk-manager: ..."`. Only `skk-manager` talks to it.
 
