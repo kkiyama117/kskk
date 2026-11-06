@@ -56,11 +56,11 @@ Routes:
 
 ## GitHub
 
-The owner chose on 2026-11-06 to manage the work on GitHub, with public repositories, one per local repository, and with merges done by `skk-manager` once the checks pass: "1, but need tests with the right granularity."
+The owner chose on 2026-11-06 to manage the work on GitHub, with public repositories, one per local repository (the owner named the parent repository `kskk`), and with merges done by `skk-manager` once the checks pass: "1, but need tests with the right granularity."
 
 | Local | GitHub |
 |---|---|
-| `/data/softwares/skk` | https://github.com/kkiyama117/skk |
+| `/data/softwares/skk` | https://github.com/kkiyama117/kskk |
 | `/data/softwares/skk/jisyo` | https://github.com/kkiyama117/skk-jisyo |
 | `/data/softwares/skk/conformance` | https://github.com/kkiyama117/skk-conformance |
 
@@ -76,18 +76,18 @@ The life of a card on GitHub:
 
 Merge criteria. A pull request merges only when all of these hold:
 
-- CI passes on the pull request's head commit.
+- CI passes for the pull request's head commit. GitHub runs a `pull_request` workflow on the merge of the head commit into `main` and reports the result on the head commit; that merge result is what CI should test.
 - It implements one card and changes only the files the card lists.
 - Every test the card names exists, has that name, and asserts the behavior the card states.
 - The tests have the right granularity. Each rule or behavior in the card has its own test, and each test fails for one reason. A test drives the code through the interface its users use: a public function for the pure core, a file round trip on synthetic data for formats, the CLI or the adapter protocol for tools, and conformance cases for engines and frontends. No test asserts a private helper, an internal call order, or an expected value computed by the code under test.
 - The tests fail when the behavior breaks: every `Must fail without` line was checked by removing the guard, and the result is in the pull request.
 - A diff that touches a contract, the split between public and private data, a migration, or security has its second review.
 
-Until a repository has CI (issue https://github.com/kkiyama117/skk/issues/4), a pull request that changes documentation only (no code, no workflow, no test data) merges after its reviews. A pull request with code waits for CI.
+Until a repository has CI (issue https://github.com/kkiyama117/kskk/issues/4), a pull request that changes documentation only (no code, no workflow, no test data) merges after its reviews. A pull request with code waits for CI.
 
 ## Issues
 
-Issues are GitHub issues on https://github.com/kkiyama117/skk, with the labels `cause:harness`, `cause:skills`, `cause:project`, `cause:memory`, `cause:one-off`, and `needs-human`. Questions for the owner are issues labeled `needs-human`. Issues about kstack skills or `run-worker.sh` go to `kkiyama117/kstack`; tell `kstack-manager`. Issues about DSH go to `kkiyama117/deepseek-harness-plugins`; tell `dsh-manager` (herdr `default` session) the issue number. Leads report issues to `skk-manager`, which files them.
+Issues are GitHub issues on https://github.com/kkiyama117/kskk, with the labels `cause:harness`, `cause:skills`, `cause:project`, `cause:memory`, `cause:one-off`, and `needs-human`. Questions for the owner are issues labeled `needs-human`. Issues about kstack skills or `run-worker.sh` go to `kkiyama117/kstack`; tell `kstack-manager`. Issues about DSH go to `kkiyama117/deepseek-harness-plugins`; tell `dsh-manager` (herdr `default` session) the issue number. Leads report issues to `skk-manager`, which files them.
 
 ## Never
 
