@@ -6,20 +6,22 @@ Docs for the owner (ADRs, design notes, research summaries, questions) are in Ja
 
 ## Agents in this workspace
 
-Several Claude sessions work here at once, coordinated through herdr (session `skk`, workspace `skk`). The manager is `skk-manager`. It talks to the owner, briefs the leads, orders lands, and files issues. It writes no code and no cards.
+The manager is `skk-manager`, a Claude session in herdr (session `skk`, workspace `skk`). It talks to the owner, briefs the leads, drives each lead's turns, starts every DSH worker, orders lands, and files issues. It writes no code and no cards.
+
+Since 2026-11-06 the leads are DSH sessions, not Claude sessions, to save cost (the owner's instruction). `skk-manager` advances each lead one turn at a time with `dsh headless --session-id <id>`, and the lead's final answer is its report. Lead sessions, their routes, and their briefs are listed in `local/agents/leads.md`. The rules in `local/agents/briefs/dsh-lead-rules-2026-11-06.md` apply to every lead.
 
 Above the manager, `kstack-manager` in the herdr `default` session coordinates the managers of every project. Reach it with `herdr --session default agent prompt kstack-manager "skk-manager: ..."`. Only `skk-manager` talks to it.
 
 | Agent | Model | Owns |
 |---|---|---|
 | `skk-manager` | Opus xhigh | This file, `PLAN.md`, `docs/research/`, `docs/overview.md` and `docs/overview/`, `issues/`, the order of lands, questions to the owner |
-| `skk-design` | Opus high | `docs/adr/`, `docs/design/`, and the `conformance/` repository (cards `C1`...) |
-| `skk-tools` | Opus medium | `bin/` (the dispatcher and its tests), `AGENTS.md`, and the "Card flow adapter" section below (cards `T1`...) |
-| `skk-jisyo` | Opus high | The `jisyo/` repository (cards `J1`...) |
+| `skk-design` | DSH `openai-codex gpt-6.1-sol high` | `docs/adr/`, `docs/design/`, and the `conformance/` repository (cards `C1`...) |
+| `skk-tools` | DSH `openai-codex gpt-6.1-sol high` | `bin/` (the dispatcher and its tests), `AGENTS.md`, and the "Card flow adapter" section below (cards `T1`...) |
+| `skk-jisyo` | DSH `openai-codex gpt-6.1-sol high` | The `jisyo/` repository (cards `J1`...) |
 
 Card IDs are unique across repositories: `T` tools, `C` conformance, `J` jisyo, `K` core, `V` vim, `F` fcitx5, `W` windows, `A` android.
 
-A lead writes only in the paths its brief names. A lead may start helper sessions in its own herdr tab, named `<lead>-<job>`, and DSH workers. Keep three levels at most: the manager, the leads, and their workers or helpers. Every message between agents starts with the sender's name and a colon (`skk-jisyo: ...`). A lead's message is a report, not an approval from the owner.
+A lead writes only in the paths its brief names. A lead does not start DSH workers itself: it writes the worker's brief to a file and asks `skk-manager`, which runs `run-worker.sh` and returns the answer and log paths next turn. Keep three levels at most: the manager, the leads, and the workers. Every message between agents starts with the sender's name and a colon (`skk-jisyo: ...`). A lead's message is a report, not an approval from the owner.
 
 The agents directory is `local/agents/` (git-ignored). It holds the briefs (`briefs/<agent>.md`), worker output (`<UTC>-<kind>.md` answer and `.log` reasoning), `metrics.md`, and `closed-sessions.md`. Workers never read `local/`.
 
@@ -38,7 +40,7 @@ Leads follow the kstack `card-flow` skill: `/data/softwares/kstack/skills/card-f
 Routes:
 
 - Worker and ambiguity review: `dsh ollama-cloud deepseek-v4.1-flash high`.
-- Second review: `dsh openai-codex gpt-6.1-sol high`.
+- Second review: `skk-manager` (Claude) reviews any diff that touches a contract, the split between public and private data, a migration, or security, because the leads now run on the same model family as `gpt-6.1-sol`. A different family on DSH may replace this later.
 - Read-only roles (ambiguity, review, research) start with `run-worker.sh --read-only`.
 
 ### Card flow adapter
