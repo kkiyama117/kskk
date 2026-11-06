@@ -12,7 +12,7 @@ Above the manager, `kstack-manager` in the herdr `default` session coordinates t
 
 | Agent | Model | Owns |
 |---|---|---|
-| `skk-manager` | Opus xhigh | This file, `PLAN.md`, `docs/research/`, `issues/`, the order of lands, questions to the owner |
+| `skk-manager` | Opus xhigh | This file, `PLAN.md`, `docs/research/`, `docs/overview.md` and `docs/overview/`, `issues/`, the order of lands, questions to the owner |
 | `skk-design` | Opus high | `docs/adr/`, `docs/design/`, and the `conformance/` repository (cards `C1`...) |
 | `skk-tools` | Opus medium | `bin/` (the dispatcher and its tests), `AGENTS.md`, and the "Card flow adapter" section below (cards `T1`...) |
 | `skk-jisyo` | Opus high | The `jisyo/` repository (cards `J1`...) |
