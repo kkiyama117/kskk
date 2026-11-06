@@ -1,0 +1,45 @@
+digraph steps {
+  graph [rankdir=TB, fontname="PlemolJP35", fontsize=13, nodesep=0.26, ranksep=0.30, pad=0.18];
+  node [fontname="PlemolJP35", fontsize=11, shape=box, style="dashed,rounded", margin="0.12,0.07"];
+  edge [fontname="PlemolJP35", fontsize=9, style=dashed, arrowhead=vee];
+
+  S0 [label="0 調査と管理の準備"];
+  S1 [label="1 ディスパッチャと実装者の規則"];
+  S2 [label="2 辞書の形式と利用者辞書の置き場所"];
+  S3 [label="3 挙動の契約とエンジンの比較"];
+  S4 [label="4 今の IME への橋渡し"];
+  S5 [label="5 エンジン"];
+  S6 [label="6 Vim と Neovim のフロントエンド"];
+  S7 [label="7 Linux のフロントエンド"];
+  S8 [label="8 Windows のフロントエンド"];
+  S9 [label="9 Android のフロントエンド"];
+
+  Q46 [label="質問 4 と 6\n同期の道具、実物の辞書", shape=note];
+  Q3 [label="質問 3\n挙動の基準", shape=note];
+  Q7 [label="質問 7\nWindows で試す方法", shape=note];
+  Q8 [label="質問 8\n携帯とキーボード", shape=note];
+  DL [label="2027 年 10 月\nDeno の開発が終わる", style="solid,rounded", color="#b00020", fontcolor="#b00020"];
+
+  { rank=same; S2; S3; }
+  { rank=same; Q46; S4; }
+  { rank=same; Q3; S5; }
+  { rank=same; DL; S6; }
+  { rank=same; Q7; S8; }
+  { rank=same; Q8; S9; }
+
+  S0 -> S1;
+  S1 -> S2;
+  S1 -> S3 [label="2 と並行する"];
+  S2 -> S4;
+  S3 -> S4;
+  S4 -> S5;
+  S5 -> S6;
+  S6 -> S7;
+  S7 -> S8;
+  S8 -> S9;
+  Q46 -> S4 [label="答えが要る"];
+  Q3 -> S5 [label="答えが要る"];
+  Q7 -> S8 [label="答えが要る"];
+  Q8 -> S9 [label="答えが要る"];
+  DL -> S6 [label="期限", color="#b00020", fontcolor="#b00020"];
+}

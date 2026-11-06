@@ -1,0 +1,29 @@
+digraph repos {
+  graph [rankdir=LR, fontname="PlemolJP35", fontsize=13, nodesep=0.30, ranksep=0.55, pad=0.18];
+  node [fontname="PlemolJP35", fontsize=11, shape=box, style="dashed,rounded", margin="0.12,0.07"];
+  edge [fontname="PlemolJP35", fontsize=9, style=dashed, arrowhead=vee];
+
+  subgraph cluster_frontends {
+    label="フロントエンド (未着手)";
+    fontname="PlemolJP35";
+    fontsize=11;
+    style=dashed;
+    color="#777777";
+
+    V [label="vim\nカード V"];
+    F [label="fcitx5\nカード F"];
+    W [label="windows\nカード W"];
+    A [label="android\nカード A"];
+  }
+
+  CORE [label="core\nカード K\nエンジンと C ABI"];
+  CONF [label="conformance\nカード C\n事例とランナー", style="solid,rounded"];
+  J [label="jisyo\nカード J\n辞書と記録の形式", style="solid,rounded"];
+
+  V -> CORE [label="呼ぶ"];
+  F -> CORE [label="呼ぶ"];
+  W -> CORE [label="呼ぶ"];
+  A -> CORE [label="呼ぶ"];
+  CORE -> J [label="使う"];
+  CONF -> J [label="使う"];
+}

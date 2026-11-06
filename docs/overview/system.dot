@@ -1,0 +1,63 @@
+digraph system {
+  graph [rankdir=TB, fontname="PlemolJP35", fontsize=13, nodesep=0.28, ranksep=0.38, pad=0.18];
+  node [fontname="PlemolJP35", fontsize=11, shape=box, style="dashed,rounded", margin="0.12,0.07"];
+  edge [fontname="PlemolJP35", fontsize=9, style=dashed, arrowhead=vee];
+
+  subgraph cluster_frontends {
+    label="フロントエンド (すべて予定)。Input を送り、Output を受け取る";
+    fontname="PlemolJP35";
+    fontsize=11;
+    style=dashed;
+    color="#777777";
+
+    W [label="Windows\nTSF の DLL"];
+    F [label="Linux\nfcitx5 のアドオン"];
+    N [label="Neovim\nLuaJIT FFI"];
+    V [label="Vim\njob と JSON"];
+    A [label="Android\nJNI"];
+  }
+
+  CORE [label="core の中心 (純粋な状態遷移)\nstep(状態, 入力イベント, 辞書)\n-> (次の状態, 出力イベントの列)", style="dashed,bold"];
+  CONF [label="conformance\n入力イベントを流し、\n出力イベントを比べる"];
+
+  subgraph cluster_dict {
+    label="辞書の取り出し元 (Lookup)";
+    fontname="PlemolJP35";
+    fontsize=11;
+    style=dashed;
+    color="#777777";
+
+    JISYO [label="SKK-JISYO のファイル", style="solid,rounded"];
+    SKS [label="skkserv (任意)"];
+    JISYO -> SKS [style=invis];
+  }
+
+  LOG [label="この機械の記録\n同期するフォルダの中"];
+
+  subgraph cluster_migration {
+    label="移行の間だけ";
+    fontname="PlemolJP35";
+    fontsize=11;
+    style=dashed;
+    color="#777777";
+
+    EXPORT [label="jisyo\n今の IME の形式に書き出す"];
+    IME [label="CorvusSKK・fcitx5-skk・skkeleton", style="solid,rounded"];
+    EXPORT -> IME [label="書き出す"];
+  }
+
+  { rank=same; CORE; CONF; }
+
+  W -> CORE [dir=both];
+  F -> CORE [dir=both];
+  N -> CORE [dir=both];
+  V -> CORE [dir=both];
+  A -> CORE [dir=both];
+  CONF -> CORE [label="Input"];
+  CORE -> CONF [label="Output", constraint=false];
+  JISYO -> CORE [label="Lookup", constraint=false];
+  SKS -> CORE [label="Lookup", constraint=false];
+  CORE -> JISYO [style=invis];
+  CORE -> LOG [label="Learn イベントを追記"];
+  LOG -> EXPORT;
+}

@@ -1,0 +1,47 @@
+digraph dataflow {
+  graph [rankdir=TB, fontname="PlemolJP35", fontsize=13, nodesep=0.26, ranksep=0.38, pad=0.18];
+  node [fontname="PlemolJP35", fontsize=11, shape=box, style="dashed,rounded", margin="0.12,0.07"];
+  edge [fontname="PlemolJP35", fontsize=9, style=dashed, arrowhead=vee];
+
+  ENGINE [label="新しいエンジン\n学習のたびに Learn を出す"];
+  OPS [label="学習の操作\n追加・先頭への移動・削除・注釈"];
+
+  subgraph cluster_synced_folder {
+    label="同期するフォルダ (道具は未定)。各機は自分の記録にだけ追記する";
+    fontname="PlemolJP35";
+    fontsize=11;
+    style=dashed;
+    color="#777777";
+
+    LOGL [label="Linux 機の記録"];
+    LOGW [label="Windows 機の記録"];
+    LOGA [label="Android 機の記録\n(予定)"];
+  }
+
+  MERGE [label="全機の記録を併合\nどの順でも同じ辞書"];
+  EXPORT [label="今の IME の形式に書き出す"];
+  LAST [label="前回の書き出しの控え"];
+  DIFF [label="前回の書き出しと比べる"];
+
+  C1 [label="CorvusSKK\nUTF-16LE (BOM 付き)", style="solid,rounded"];
+  C2 [label="fcitx5-skk\nEUC-JP", style="solid,rounded"];
+  C3 [label="skkeleton\nUTF-8", style="solid,rounded"];
+
+  ENGINE -> OPS [label="Learn イベント"];
+  OPS -> LOGL [label="追記"];
+  OPS -> LOGW [label="追記"];
+  OPS -> LOGA [label="追記"];
+  LOGL -> MERGE;
+  LOGW -> MERGE;
+  LOGA -> MERGE;
+  MERGE -> EXPORT;
+  EXPORT -> C1 [label="書き出す"];
+  EXPORT -> C2;
+  EXPORT -> C3;
+  EXPORT -> LAST [label="控えを残す"];
+  C1 -> DIFF [label="取り込む"];
+  C2 -> DIFF;
+  C3 -> DIFF;
+  LAST -> DIFF;
+  DIFF -> OPS [label="差分を記録に直す", constraint=false];
+}

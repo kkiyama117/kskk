@@ -1,0 +1,45 @@
+digraph agents {
+  graph [rankdir=TB, fontname="PlemolJP35", fontsize=13, nodesep=0.28, ranksep=0.36, pad=0.18];
+  node [fontname="PlemolJP35", fontsize=11, shape=box, style="solid,rounded", margin="0.12,0.07"];
+  edge [fontname="PlemolJP35", fontsize=9, style=solid, arrowhead=vee];
+
+  OWNER [label="所有者", shape=box, style="solid"];
+  KM [label="kstack-manager\n全プロジェクトのマネージャをまとめる\nherdr セッション default"];
+  MGR [label="skk-manager\nskk プロジェクトの窓口\nコードもカードも書かない"];
+
+  subgraph cluster_skk {
+    label="herdr セッション skk のリード (3 人)";
+    fontname="PlemolJP35";
+    fontsize=11;
+    style=solid;
+    color="#777777";
+
+    D [label="skk-design\nADR、conformance"];
+    T [label="skk-tools\nbin/、AGENTS.md"];
+    J [label="skk-jisyo\njisyo"];
+  }
+
+  subgraph cluster_dsh {
+    label="DSH で動く役";
+    fontname="PlemolJP35";
+    fontsize=11;
+    style=solid;
+    color="#777777";
+
+    WK [label="ワーカー\ndeepseek-v4.1-flash high"];
+    RV [label="二つ目のレビュー\ngpt-6.1-sol high、読み取り専用"];
+  }
+
+  { rank=same; OWNER; KM; }
+  OWNER -> MGR [dir=both, label="質問と回答"];
+  KM -> MGR [dir=both, label="全プロジェクトの調整"];
+  MGR -> D [label="ブリーフ"];
+  MGR -> T [label="ブリーフ"];
+  MGR -> J [label="ブリーフ"];
+  D -> WK [dir=both, label="カード、報告"];
+  T -> WK [dir=both, label="カード、報告"];
+  J -> WK [dir=both, label="カード、報告"];
+  D -> RV [dir=both, label="差分、判定"];
+  T -> RV [dir=both, label="差分、判定"];
+  J -> RV [dir=both, label="差分、判定"];
+}
