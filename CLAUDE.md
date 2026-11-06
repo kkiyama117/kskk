@@ -40,7 +40,9 @@ Leads follow the kstack `card-flow` skill: `/data/softwares/kstack/skills/card-f
 Routes:
 
 - Worker and ambiguity review: `dsh ollama-cloud deepseek-v4.1-flash high`.
-- Second review: `dsh google gemini-3.1-pro-preview high`, read-only, a model family different from both the leads (OpenAI) and the workers (DeepSeek). The lead asks `skk-manager` to run it. `skk-manager` also reviews every heavy diff (a contract, the split between public and private data, a migration, or security), because in the first comparisons the two found different defects. `local/agents/metrics.md` records the real defects, errors, and misses of each.
+- Second review (from 2026-11-06, the owner's instruction through kstack PR #44): chosen by what the diff touches. Security, the split between public and private data, credentials, the sandbox, or an academic claim: `dsh openai-codex gpt-6-astra high`, read-only. A contract, a migration, or a data shape another repository uses: `gpt-6.1-sol`, but the leads run on `gpt-6.1-sol`, so `skk-manager` (Claude Opus 5.5) reviews it. A diff that matches both gets both. Never the model that wrote the diff or the lead's own model. The lead asks `skk-manager` to run the worker. Before the pull request of any bundle that holds such a diff, `skk-manager` reviews it as well, with `file:line` on each finding and, when it finds nothing, the list of files it read.
+- Documents: `dsh google gemini-3.8-flash high` polishes documents and corrects Japanese only; it reviews nothing. Its brief names the reader, the purpose, the sections, the terms to keep, the facts it must not change, and the language and form of the answer, and the lead checks that its output changed no fact.
+- A review or ambiguity answer without a `TOTAL` or `STOPPED` line is a failed run, even with exit code 0. `run-worker.sh` exits 4 when a turn did not complete.
 - Read-only roles (ambiguity, review, research) start with `run-worker.sh --read-only`.
 
 ### Card flow adapter
@@ -60,7 +62,7 @@ The owner chose on 2026-11-06 to manage the work on GitHub, with public reposito
 |---|---|
 | `/data/softwares/skk` | https://github.com/kkiyama117/skk |
 | `/data/softwares/skk/jisyo` | https://github.com/kkiyama117/skk-jisyo |
-| `/data/softwares/skk/conformance` | https://github.com/kkiyama117/skk-conformance (created once it has its license files) |
+| `/data/softwares/skk/conformance` | https://github.com/kkiyama117/skk-conformance |
 
 Only `skk-manager` talks to GitHub: it pushes, opens and merges pull requests, and files issues. Leads and workers never push and never hold GitHub credentials.
 
