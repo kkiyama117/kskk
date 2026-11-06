@@ -35,7 +35,16 @@
 | ttyskk 0.4.7 | 端末 | 本体、C ABI | Rust | MIT または Apache-2.0 | 2026-10-18 | 未確認 |
 | AndroidSKK (deadend-noname) 3.7.2 | Android | 本体 | Kotlin | Apache-2.0 | 2026-03-15 | jdbm の B-tree (テキストではない) |
 | fcitx5-android 0.1.3 | Android | fcitx5 (SKK は無い) | Kotlin、C++ | LGPL-2.1 | 2026-10-13 | なし |
-| yaskkserv2 0.1.7 | 辞書サーバー | なし (変換はしない) | Rust | Apache-2.0 | 2026-10-03 | なし |
+| yaskkserv2 0.1.8 | 辞書サーバー | なし (変換はしない) | Rust | MIT または Apache-2.0 | 2026-10-03 | なし |
+
+## 参考にするコード
+
+[yaskkserv2](https://github.com/wachikun/yaskkserv2) は辞書サーバーで、変換はしません。それでも、自分たちで作る部品にそのまま役立つコードがあります。ライセンスは `Cargo.toml` に `MIT/Apache-2.0` とあり、`LICENSE-MIT` と `LICENSE-APACHE` の両方が置かれています。著作権表示を残せば、私たちのコード (MIT OR Apache-2.0) に取り込めます。依存の crate が古い (clap 3、reqwest 0.11、mio 0.8) ので、crate ごと依存せず、必要な部分を写すか手本にします。
+
+- `src/skk/encoding_simple/` は、`euc-jis-2004-std.txt` から作った表で、EUC-JIS-2004 と UTF-8 を相互に変換します。結合文字 (25組) にも対応しています。ddskk のユーザー辞書の既定は EUC-JIS-2004 ですが、Rust でよく使う `encoding_rs` は EUC-JIS-2004 を扱えません。`jisyo` はこの穴を埋める必要があります。
+- `src/skk/yaskkserv2_make_dictionary/jisyo_reader.rs` と `jisyo_creator.rs` は、SKK-JISYO を読んで書き出します。`src/skk/candidates.rs` は、注釈の付いた候補を併合します。
+- `src/skk/test_unix/ddskk.rs` は、Rust の試験から `emacs --script` で本物の ddskk を動かします。Emacs が無ければ何もせずに成功します。conformance で ddskk を正解の出どころにする方法の前例です。
+- `src/skk/yaskkserv2/request.rs` と README の「SKK protocol memo」は、skkserv の要求の区切り方の違いを扱っています。
 
 ## 報告の訂正
 
