@@ -23,6 +23,15 @@ One Rust engine used by every frontend, thin frontends, and a user-dictionary st
 | `windows` | TSF text service in Rust with windows-rs. | not started | `W` |
 | `android` | InputMethodService over JNI. | not started | `A` |
 
+### Structure
+
+The owner asked on 2026-11-06 for a structure in which parts can be replaced: "I think clean or layered architecture is needed to separate to change parts of programs. and consider event-driven". ADR-0009 records the design. The starting point is:
+
+- The engine's center is a pure state machine: `(state, input event) -> (next state, output events)`. Input events are keys, focus, reset, and config changes. Output events are preedit changes, committed text, candidate lists, mode changes, and learning (add, promote, delete). Files, time, and I/O stay outside the center.
+- The key path has no asynchronous event bus. The same input events always give the same output events, so conformance cases replay exactly and per-key latency stays small.
+- Learning events from the engine are the records of the `jisyo` log, and conformance cases are written as input and output events.
+- Layers sit only where two or more real implementations exist: frontends, dictionary sources, encodings, sync transports, and the exporters and importers for each current IME. A layer with one implementation is not added.
+
 Each repository is its own local git repository under `/data/softwares/skk/`, ignored by the parent's `.gitignore`. The parent holds this plan, `CLAUDE.md`, `AGENTS.md`, `docs/` (research, ADRs, design), `issues/`, and the dispatcher in `bin/`. Nothing has a remote. Code we write is `MIT OR Apache-2.0` until the license ADR decides otherwise, because permissive code can still be combined with GPL code later.
 
 ## Steps
@@ -46,8 +55,8 @@ Each step ends with a check. Do not start a step before its check passes, except
 
 The manager asks these together. Work continues on the default until the owner answers.
 
-1. **License.** cskk and libskk are GPL-3.0-or-later. Using one of them as our engine makes the Windows and Android frontends GPL-3.0 too. Is GPL acceptable for this personal project? Default: yes, if the engine comparison picks a GPL engine. Our own code stays `MIT OR Apache-2.0` meanwhile.
-2. **Linux framework.** This machine runs fcitx5 with fcitx5-skk active, while the README says ibus-skk. Does any other Linux machine use IBus? Default: no, so only an fcitx5 frontend is built. An IBus frontend can be added later on the same engine.
+1. **License.** Answered on 2026-11-06: "1: OK, but consider implementing engine." GPL-3.0 is acceptable, so a GPL engine and GPL frontends are allowed. The engine ADR must treat writing our own engine as a real option.
+2. **Linux framework.** Answered on 2026-11-06: "2: Ok". No other Linux machine uses IBus, so only an fcitx5 frontend is built. An IBus frontend can be added later on the same engine.
 3. **Behavior reference.** When implementations differ, which one is right? Default: ddskk with its default settings, the reference implementation. skk-design lists every case where ddskk and the owner's current IMEs differ, and the owner picks the habits to keep from that list.
 4. **File sync between machines.** Which tool already reaches all your machines (Syncthing, a Git repository, a cloud drive, a server you own)? Default: decide later. The design needs only a folder that syncs files, so we build and test against one local folder. The manager asks again before step 4.
 5. **Vim or Neovim.** Decided without the owner: both, because both are installed here. Neovim through LuaJIT FFI, Vim through a job.
