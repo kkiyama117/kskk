@@ -32,7 +32,7 @@ The owner asked on 2026-11-06 for a structure in which parts can be replaced: "I
 - Learning events from the engine are the records of the `jisyo` log, and conformance cases are written as input and output events.
 - Layers sit only where two or more real implementations exist: frontends, dictionary sources, encodings, sync transports, and the exporters and importers for each current IME. A layer with one implementation is not added.
 
-Each repository is its own local git repository under `/data/softwares/skk/`, ignored by the parent's `.gitignore`. The parent holds this plan, `CLAUDE.md`, `AGENTS.md`, `docs/` (research, ADRs, design), `issues/`, and the dispatcher in `bin/`. Nothing has a remote. Code we write is `MIT OR Apache-2.0` until the license ADR decides otherwise, because permissive code can still be combined with GPL code later.
+Each repository is its own local git repository under `/data/softwares/skk/`, ignored by the parent's `.gitignore`. The parent holds this plan, `CLAUDE.md`, `AGENTS.md`, `docs/` (research, ADRs, design), and the dispatcher in `bin/`. Each repository has a public GitHub repository under `kkiyama117` (the owner's choice on 2026-11-06); `CLAUDE.md` section "GitHub" lists them and gives the pull-request flow and the merge criteria. Code we write is `MIT OR Apache-2.0` until the license ADR decides otherwise, because permissive code can still be combined with GPL code later.
 
 ## Steps
 

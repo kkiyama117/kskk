@@ -14,7 +14,7 @@ Above the manager, `kstack-manager` in the herdr `default` session coordinates t
 
 | Agent | Model | Owns |
 |---|---|---|
-| `skk-manager` | Opus xhigh | This file, `PLAN.md`, `docs/research/`, `docs/overview.md` and `docs/overview/`, `issues/`, the order of lands, questions to the owner |
+| `skk-manager` | Opus xhigh | This file, `PLAN.md`, `docs/research/`, `docs/overview.md` and `docs/overview/`, everything on GitHub (pushes, pull requests, merges, issues), the order of lands, questions to the owner |
 | `skk-design` | DSH `openai-codex gpt-6.1-sol high` | `docs/adr/`, `docs/design/`, and the `conformance/` repository (cards `C1`...) |
 | `skk-tools` | DSH `openai-codex gpt-6.1-sol high` | `bin/` (the dispatcher and its tests), `AGENTS.md`, and the "Card flow adapter" section below (cards `T1`...) |
 | `skk-jisyo` | DSH `openai-codex gpt-6.1-sol high` | The `jisyo/` repository (cards `J1`...) |
@@ -30,8 +30,8 @@ The agents directory is `local/agents/` (git-ignored). It holds the briefs (`bri
 - The parent repository is shared by every lead. Stage and commit by explicit path: `git add <paths>`, then `git commit -m ... -- <paths>`. Never `git add -A`, `git add .`, or a bare `git commit`, because the index is shared.
 - Run `git status --short` before every commit and leave changes that are not yours alone. Never reset, restore, or stash another agent's changes.
 - Each child repository has one lead, who is its only committer.
-- Tell `skk-manager` before each dispatch and wait for its go before each land into a main branch. Report after the land. Land one card at a time per main branch.
-- A card is done only when `git merge-base --is-ancestor <commit> main` confirms its commit is in `main`. Nothing here has a remote, so cards land on `main` directly.
+- Tell `skk-manager` before each dispatch. A card lands through a pull request that `skk-manager` opens and merges (section "GitHub"). Land one card at a time per main branch.
+- A card is done only when `git merge-base --is-ancestor <commit> origin/main` confirms its commit is in `origin/main` after `git fetch`.
 
 ## Card flow
 
@@ -52,9 +52,38 @@ Routes:
 - Gate: `make check` in each repository.
 - Dispatcher: `$DISPATCH` is `python3 /data/softwares/skk/bin/dispatch.py` once it exists.
 
+## GitHub
+
+The owner chose on 2026-11-06 to manage the work on GitHub, with public repositories, one per local repository, and with merges done by `skk-manager` once the checks pass: "1, but need tests with the right granularity."
+
+| Local | GitHub |
+|---|---|
+| `/data/softwares/skk` | https://github.com/kkiyama117/skk |
+| `/data/softwares/skk/jisyo` | https://github.com/kkiyama117/skk-jisyo |
+| `/data/softwares/skk/conformance` | https://github.com/kkiyama117/skk-conformance (created once it has its license files) |
+
+Only `skk-manager` talks to GitHub: it pushes, opens and merges pull requests, and files issues. Leads and workers never push and never hold GitHub credentials.
+
+The life of a card on GitHub:
+
+1. The lead commits the card on branch `card/<ID>` in its worktree, runs the full gate, and reports the commit, the gate's last lines, the tests it added or changed, and the results of each `Must fail without` check.
+2. `skk-manager` pushes `card/<ID>` and opens a pull request titled `<ID>: <title>`. Its body opens with the owner's goal (`## Why`), names the card, and carries the lead's evidence and the second review.
+3. CI runs the repository's gate on the pull request.
+4. `skk-manager` reads the diff and merges with a merge commit (`gh pr merge --merge --delete-branch`) only when every merge criterion below holds. Then it runs `git pull --ff-only` in the local main checkout and tells the lead.
+5. The lead removes the worktree and records `Status: done` for the card in its next pull request.
+
+Merge criteria. A pull request merges only when all of these hold:
+
+- CI passes on the pull request's head commit.
+- It implements one card and changes only the files the card lists.
+- Every test the card names exists, has that name, and asserts the behavior the card states.
+- The tests have the right granularity. Each rule or behavior in the card has its own test, and each test fails for one reason. A test drives the code through the interface its users use: a public function for the pure core, a file round trip on synthetic data for formats, the CLI or the adapter protocol for tools, and conformance cases for engines and frontends. No test asserts a private helper, an internal call order, or an expected value computed by the code under test.
+- The tests fail when the behavior breaks: every `Must fail without` line was checked by removing the guard, and the result is in the pull request.
+- A diff that touches a contract, the split between public and private data, a migration, or security has its second review.
+
 ## Issues
 
-skk has no git remote, so its issues are files under `issues/`, one per issue, in the format of `issues/README.md`. Issues about kstack skills or `run-worker.sh` go to `kkiyama117/kstack`; tell `kstack-manager`. Issues about DSH go to `kkiyama117/deepseek-harness-plugins`; tell `dsh-manager` (herdr `default` session) the issue number. Leads report issues to `skk-manager`, which files them.
+Issues are GitHub issues on https://github.com/kkiyama117/skk, with the labels `cause:harness`, `cause:skills`, `cause:project`, `cause:memory`, `cause:one-off`, and `needs-human`. Questions for the owner are issues labeled `needs-human`. Issues about kstack skills or `run-worker.sh` go to `kkiyama117/kstack`; tell `kstack-manager`. Issues about DSH go to `kkiyama117/deepseek-harness-plugins`; tell `dsh-manager` (herdr `default` session) the issue number. Leads report issues to `skk-manager`, which files them.
 
 ## Never
 
