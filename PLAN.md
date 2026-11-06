@@ -47,10 +47,10 @@ Each step ends with a check. Do not start a step before its check passes, except
 The manager asks these together. Work continues on the default until the owner answers.
 
 1. **License.** cskk and libskk are GPL-3.0-or-later. Using one of them as our engine makes the Windows and Android frontends GPL-3.0 too. Is GPL acceptable for this personal project? Default: yes, if the engine comparison picks a GPL engine. Our own code stays `MIT OR Apache-2.0` meanwhile.
-2. **Linux framework.** This machine runs fcitx5 with fcitx5-skk active, while the README says ibus-skk. Default: fcitx5.
-3. **Behavior reference.** When implementations differ, which one is right? Default: ddskk, the reference implementation, with a list of CorvusSKK or fcitx5-skk habits the owner wants to keep.
-4. **File sync between machines.** Which tool already reaches all your machines (Syncthing, a Git repository, a cloud drive, a server you own)? Default: the design needs only a folder that syncs files, so we build against a local folder and pick the tool later.
-5. **Vim or Neovim.** Default: both. Neovim through LuaJIT FFI, Vim through a job.
+2. **Linux framework.** This machine runs fcitx5 with fcitx5-skk active, while the README says ibus-skk. Does any other Linux machine use IBus? Default: no, so only an fcitx5 frontend is built. An IBus frontend can be added later on the same engine.
+3. **Behavior reference.** When implementations differ, which one is right? Default: ddskk with its default settings, the reference implementation. skk-design lists every case where ddskk and the owner's current IMEs differ, and the owner picks the habits to keep from that list.
+4. **File sync between machines.** Which tool already reaches all your machines (Syncthing, a Git repository, a cloud drive, a server you own)? Default: decide later. The design needs only a folder that syncs files, so we build and test against one local folder. The manager asks again before step 4.
+5. **Vim or Neovim.** Decided without the owner: both, because both are installed here. Neovim through LuaJIT FFI, Vim through a job.
 6. **Your real dictionaries.** May our tool read copies of `~/.local/share/fcitx5/skk/user.dict`, `~/.skkeleton`, and the CorvusSKK `userdict.txt` to test import and merge? No model sees the contents. The tool reports counts only. Default: no; tests use synthetic data until you say yes.
 7. **Windows testing.** Can agents reach a Windows machine (for example over SSH), or do you test the Windows build by hand? Asked before step 8.
 8. **Android.** Which phone, and do you use a hardware keyboard or a flick keyboard? Asked before step 9.
