@@ -2,50 +2,50 @@
 
 Only `skk-tools` edits this file. `Files:` paths are relative to the parent repository. `bin/TASKS.md` on a Files line is lead-owned documentation: the worker must not edit it. The lead includes the card and any preceding card's `Status: done` in that card's pull request.
 
-### Project rules for all three cards
+### Project rules for tools cards
 
-- `CLAUDE.md`, sections "GitHub" and "Card flow", overrides card-flow's local fast-forward land and its default second-review route. Only `skk-manager` fetches from GitHub, pushes, opens or merges pull requests, and updates the local main checkout. No dispatcher verb uses the network or advances `main`.
+- Live policy is `/data/softwares/skk/CLAUDE.md`, sections "GitHub" and "Card flow", and `/data/softwares/skk/local/agents/briefs/dsh-lead-rules-2026-11-06.md`. The worker must not read that private rules file; its applicable rules are copied here and into the brief. The lead's review brief supplies the live CLAUDE.md as a permitted policy path. A worktree's older CLAUDE.md snapshot is not the authority for routes or CI semantics. Only `skk-manager` fetches, pulls, pushes, opens or merges pull requests. The lead never runs git fetch/pull/push. No dispatcher verb uses the network or advances main. The parent GitHub repository is kskk; the local dispatcher alias PARENT remains skk.
+- Implementation order is T3, T1, T2, T4, T5, one PR and gate per card. T1 is repository/gate/brief porting; T4 adds cargo preparation; T5 adds post-merge cleanup. This splits the former T1 by lifecycle: dispatching code, preparing cargo before a worker, and deleting only already-merged worktrees. Do not implement a later card early. Until T4, cargo dispatch and review are explicitly unavailable; until T5, land is explicitly unavailable. The obsolete local-main merge and rollback paths are deleted in T1, not retained behind a compatibility switch.
 - The worker gate is `python3 -m unittest discover -s bin -p 'test_*.py'`, in its parent worktree. It must not write the actual checkout's git index, objects, or refs. Synthetic git repositories under `tempfile.TemporaryDirectory()` are test data and may have git state written there. Do not add an index-writing gate step.
 - Tests for the dispatcher drive its command interface through `dispatch.main(argv, root=<temporary project>, worker=<fake executable>)`, capturing stdout, stderr and its return code. This is the existing in-process CLI harness, not a private-helper test. Assertions use literal expectations from this card, not values returned by another dispatcher helper. Mocks may supply the clock, `PRIME`, or the test repository graph, and may inject an OSError at the standard-library `Path.rmdir` boundary for the root-removal error test. Do not mock a private helper or assert internal calls or their order. A fake executable on `PATH` may cause an external command failure.
 - One test function per row in each test table. A row tests one behavior. Its status code, diagnostics and resulting files are facets of that behavior, not independent features to combine with unrelated assertions. Split any retained test that checks independent behaviors into the named tests below. Every guard check removes only the guard, not its error-handling dependencies; a test counts only if the guard's absence causes its assertion or exception failure. Import, compile and fixture failures do not count.
 - Workers receive no long-term memory. Every needed decision is in the card or the documents it names. Do not depend on a remembered exception. No worker starts a real DSH process, engine or container in tests.
 
-## T1. Port the dispatcher to skk and finish cards after pull-request merges
+## T1. Port repository discovery, gates and worker briefs to skk
 
 Status: open
 
-Needs: nothing in the implementation. Commit 4e8e7a3 in `/data/softwares/skk` copied `bin/dispatch.py` and `bin/test_dispatch.py` from aistore. Read the copies here, not the aistore checkout. Before T1 can merge, the parent CI from T3 must be available. T3 is independent and is intended to merge first.
+Needs: T3 merged into origin/main. Commit 4e8e7a3 in `/data/softwares/skk` copied `bin/dispatch.py` and `bin/test_dispatch.py` from aistore. Read the copies here, not the aistore checkout. This card does not implement cargo priming or post-merge cleanup; those are T4 and T5.
 
-Spec: this card and the introduction "Project rules for all three cards" in `bin/TASKS.md`; `AGENTS.md`; `CLAUDE.md`, sections "GitHub" and "Card flow"; `/data/softwares/kstack/skills/card-flow/SKILL.md`, sections "Project adapter" and "4. Review the diff".
+Spec: this card and the introduction "Project rules for tools cards" in `bin/TASKS.md`; `AGENTS.md`; `/data/softwares/skk/CLAUDE.md`, sections "GitHub" and "Card flow"; `/data/softwares/kstack/skills/card-flow/SKILL.md`, sections "Project adapter" and "4. Review the diff".
 
 Files: `bin/dispatch.py`, `bin/test_dispatch.py`, `bin/TASKS.md`.
 
-`bin/TASKS.md` is lead-only. The worker changes only the two Python files. The lead updates the "Card flow adapter" section of `CLAUDE.md` after T2 merges, outside these implementation cards. That section's current `make check` sentence conflicts with the parent gate in `AGENTS.md` rule 19; use the gate in this card.
+`bin/TASKS.md` is lead-only. The worker changes only the two Python files. The lead updates the "Card flow adapter" section of `CLAUDE.md` after T5 merges, outside these implementation cards. That section's current `make check` sentence conflicts with the parent gate in `AGENTS.md` rule 19; use the gate in this card.
 
 ### Repositories and commands
 
-1. Remove `_go_version`, `write_go_work`, its call, `GOWORK`, Go workspace files and the GOCACHE advice. Replace the old local-merge implementation with the cleanup-only `land` below. Delete `_revert_main`, `_rollback_report`, `_roll_back` and `_fast_forward`; do not retain a local-merge mode, a rollback mode, a flag selecting one, or tests for them.
-2. Set `PARENT = 'skk'`, `USES = {'jisyo': [], 'conformance': ['jisyo']}`, `WORKER_ROUTE = ['dsh', 'ollama-cloud', 'deepseek-v4.1-flash', 'high']`, and `REVIEW_ROUTE = ['dsh', 'openai-codex', 'gpt-6-astra', 'high']`. The live project rules replace the former Gemini route. The `review` verb is the external review path for security, privacy, credentials, sandbox changes or academic claims. The lead decides applicability; the dispatcher does not infer categories from a diff. Pure contract, migration or cross-repository data-shape review goes to `skk-manager`, outside this verb, because the specified contract-review model matches the lead's model. A diff in both categories gets Astra and manager review. Gemini polishes documents only and is never a reviewer. Keep `ROOT` as the resolved parent of `bin/`, `KSTACK = Path('/data/softwares/kstack')`, and `WORKER = KSTACK / 'skills/kiyama-mode/scripts/run-worker.sh'`.
+1. Remove `_go_version`, `write_go_work`, its call, `GOWORK`, Go workspace files and the GOCACHE advice. Remove the old local-merge land implementation and its `_ancestor`, `_check_landable`, `_revert_main`, `_rollback_report`, `_roll_back` and `_fast_forward` helpers. Until T5, land always raises DispatchError `land is unavailable until T5; ask skk-manager to confirm the PR merge and arrange cleanup`, before any Git or filesystem mutation. Keep the land parser and this refusal only, not the obsolete implementation or its rollback tests.
+2. Set `PARENT = 'skk'`, `USES = {'jisyo': [], 'conformance': ['jisyo']}`, `WORKER_ROUTE = ['dsh', 'ollama-cloud', 'deepseek-v4.1-flash', 'high']`, and `REVIEW_ROUTE = ['dsh', 'openai-codex', 'gpt-6-astra', 'high']`. The live project rules replace the former Gemini route. The `review` verb requires `--kind security|contract|both`; there is no default. The lead declares the category, and the dispatcher does not infer it from filenames or content. `--kind contract` refuses with DispatchError `card <ID>: contract, migration and shared-data reviews belong to skk-manager; no DSH reviewer was started`, before looking for changes, running a gate or starting a worker. For `security`, use the external Astra route for security/privacy/credentials/sandbox/academic review. For `both`, use Astra for that component and print `manager review also required for <ID>` before the gate. The separate manager review is recorded in the manager's PR evidence, not by a fake DSH route or by this verb. An Astra answer never records manager approval. Gemini polishes documents only and is never a reviewer. Keep `ROOT` as the resolved parent of `bin/`, `KSTACK = Path('/data/softwares/kstack')`, and `WORKER = KSTACK / 'skills/kiyama-mode/scripts/run-worker.sh'`.
 3. `repo_dir(root, repo)` returns `root` for `skk`, otherwise `root / repo`. All accesses to main checkouts use it, including branch/status checks, worktree creation/discard, contract discovery, main-review paths and cleanup. Worktrees remain `<root>/local/worktrees/<ID>/<repo>` on `card/<ID>`. `tasks_path(repo)` returns `bin/TASKS.md` for `skk`, otherwise `TASKS.md`.
 4. `all_cards(root)` reads `root/bin/TASKS.md` when it is a file as repo `skk`. It also reads `<name>/TASKS.md` for immediate child directories other than `bin` and `local` that have both that file and a `.git` file or directory. Return cards by repository name, then file order. The heading pattern is `## ([A-Z]+[0-9]+)\. (.*)`. A section ends at the next `## ` line. Only a stripped `Status: done` marks it done. `all_cards` also returns draft cards; `Status: draft` is not done. `card` rejects a section containing a stripped `Status: draft`, after its done-card check and before checking the cards file or creating anything, with `card <ID> is draft; finish and review it before dispatch`. If both done and draft markers occur, the done-card rejection wins. No new Card data field is required: the draft marker is available in its text. `Files:` extracts backtick-delimited paths from that line. The card data fields remain `id`, `title`, `repo`, `text`, `done`, `files`.
 5. The repository graph is transitive. `users(repo)` is every other repository depending on it, in USES insertion order. A card's set starts with itself and every user, then includes the transitive dependencies of every member, including the card repository's own dependencies, in USES insertion order. A repo outside USES has only itself in its set. For the real graph, both child cards create `jisyo` then `conformance`; only a jisyo card has conformance as a user. Parent cards create only `skk`.
-6. Keep the command forms `ambiguity [ID ...]`, `card ID [--no-worker]`, `review ID [--main PATH ...]`, `land ID`. `card` requires its main checkout on `main`, a card marked neither done nor draft as defined in rule 4, a committed cards file, no existing worktree root, and no existing `card/<ID>` branch in its set. Its cards-file status path is `tasks_path(card.repo)`. A dirty main checkout outside that file warns but is not modified. Worktrees start from local `main`, which the manager synchronizes before dispatch. If worktree creation fails, discard only worktrees and branches this invocation created, in reverse order, then remove its worktree root. Do not delete a branch that existed before the invocation.
+6. Keep the command forms `ambiguity [ID ...]`, `card ID [--no-worker]`, `review ID --kind {security,contract,both} [--main PATH ...]`, `land ID`. `card` requires its main checkout on `main`, a card marked neither done nor draft as defined in rule 4, a committed cards file, no existing worktree root, and no existing `card/<ID>` branch in its set. Its cards-file status path is `tasks_path(card.repo)`. A dirty main checkout outside that file warns but is not modified. Worktrees start from local `main`, which the manager synchronizes before dispatch. If worktree creation fails, discard only worktrees and branches this invocation created, in reverse order, then remove its worktree root. Do not delete a branch that existed before the invocation.
 7. `ambiguity` with IDs removes duplicate IDs, keeping each ID's first occurrence, before resolving cards, constructing the brief or constructing its output name. It reviews the resulting cards in that order, including done or draft ones. With none it reviews all non-done cards, including drafts, in `all_cards` order. The ambiguity brief lists card IDs, repositories and titles and points to their cards files; it does not embed their full card text or Files lines. The list of repositories inside the brief follows USES order, then sorted unknown names. Contract paths are sorted within each repo. `_contract_files` searches `*.rs` recursively, skipping `.git` and `target` path components. For the parent its search root is `repo_dir(root, PARENT) / 'bin'`; for a child it is `repo_dir(root, repo)`. No other parent-directory search is added.
-8. `review` without `--main` needs the card's worktrees. For each repository in name order, include `git diff <merge-base of main and HEAD>` and absolute untracked paths, so committed card changes are included but changes only on newer main are not. Empty diffs are omitted. `--main` instead uses `git diff HEAD -- <paths>` and untracked files limited to those paths in `repo_dir(root, card.repo)`, with no worktree required. Consumer paths in that brief are the card repo then its users, via `repo_dir`. Both forms run the gate before the reviewer, even on gate failure, and return the reviewer's status. A gate captures merged stdout/stderr with replacement decoding, prints `gate exit <code>`, and embeds the last 40 lines or `(no output)`.
+8. After the kind check, `review` without `--main` requires the worktree root and an exact match between discovered repository worktrees and `repo_set(card.repo)`, before collecting a diff or running a gate. Report the first missing name in sorted order as `<repo>: missing worktree <path>; expected the full repository set for <ID>`. If none is missing, report the first unexpected name in sorted order as `<repo>: unexpected worktree <path>; not in the repository set for <ID>`. `<path>` is `<wt_root>/<repo>`. These DispatchError messages also apply to T5 land. For each expected repository in name order, include `git diff <merge-base of main and HEAD>` and absolute untracked paths, so committed card changes are included but changes only on newer main are not. Empty diffs are omitted. `--main` first requires that `repo_dir(root, card.repo)` is on branch main, using the existing `<repo>: the main checkout is not on branch main` DispatchError otherwise. It then uses `git diff HEAD -- <paths>` and untracked files limited to those paths in that checkout, with no card worktree required. Consumer paths in that brief are the card repo then its users, via `repo_dir`. Both forms run the gate before the reviewer, even on gate failure, and return the reviewer's status. A gate captures merged stdout/stderr with replacement decoding, prints `gate exit <code>`, and embeds the last 40 lines or `(no output)`.
 
 ### Cargo and gates
 
 9. `PARENT_GATE = "python3 -m unittest discover -s bin -p 'test_*.py'"`. `gate_command(tree, repo)` is `cd {tree} && {PARENT_GATE}` for `skk`, otherwise `CARGO_NET_OFFLINE=true CARGO_TARGET_DIR={tree}/target make -C {tree} check`. `gates(wt_root, card)` returns narrow and full. Narrow is the card repo's gate; full appends each user's gate with ` && `, including users without a Makefile. `main_gate` uses those same repositories via `repo_dir`. The dispatcher does not hide build output: unignored `target/` is an outside-Files change. Editing child `.gitignore` files is not part of T1.
-10. `PRIME = ['cargo', 'test', '--locked', '--no-run', '--all-targets']`. `cargo_env(tree)` extends the inherited environment with `CARGO_NET_OFFLINE=true` and `CARGO_TARGET_DIR=str(tree / 'target')`. Just after creating all worktrees, and before printing their paths or starting a worker, run PRIME in each set member whose worktree contains `Cargo.toml`, in set order. Capture stdout and stderr together with text replacement decoding. This is the only pre-worker dependency preparation outside the sandbox. It runs on the freshly created checkout, including with `--no-worker`. It does not run on code written by a worker.
-11. Print `prime <repo> exit <code>` for each prime, including a failure. On failure, discard this card's worktrees and branches and stop without starting the worker. The error text is `<repo>: cargo test --locked --no-run --all-targets failed in the worktree (exit <code>); run cargo fetch and make check in <path>, then dispatch again. Last lines:\n<tail>`. `<path>` is the absolute main checkout via `repo_dir`. `<tail>` is the last 20 lines of captured output, or exactly `(no output)` when it is empty. The command name in this message does not change when tests replace PRIME. The message addresses the lead, not implementers bound by `AGENTS.md` rule 4.
-12. `card` workers receive `cargo_env` for their own repository, including the parent. Review and ambiguity workers receive `env=None`, thus inherit the caller's environment rather than having cargo values set by the dispatcher. Tests remove `CARGO_NET_OFFLINE` and `CARGO_TARGET_DIR` from the test process environment in setUp and restore them with cleanup. Do not change the production `env=None` rule to make a test deterministic.
+10. Until T4, refuse cargo workflows instead of starting a worker with unprepared dependencies. In card, inspect the main checkouts in repo_set order before making worktrees. In external review, inspect every set member in the selected main/worktree checkouts before running a gate. The first Cargo.toml file causes DispatchError `<repo>: cargo workflows are unavailable until T4`. Do not build, prime, create worktrees, or start a worker in that case. T4 removes this temporary refusal when its preparation is implemented.
+12. `cargo_env(tree)` returns the inherited environment extended with `CARGO_NET_OFFLINE=true` and `CARGO_TARGET_DIR=str(tree / 'target')`. `card` workers receive this environment for their own repository, including the parent. Review and ambiguity workers receive `env=None`, thus inherit the caller's environment rather than having cargo values set by the dispatcher. Tests remove `CARGO_NET_OFFLINE` and `CARGO_TARGET_DIR` from the test process environment in setUp and restore them with cleanup. Do not change the production `env=None` rule to make a test deterministic.
 
-### Land is cleanup, not a merge
+### Boundaries of this port
 
-13. Only after the manager merges the pull request, fetches, and pulls local main, may the lead request `land <ID>`. The manager performs the fetch and pull, not the dispatcher. `land` trusts the manager-supplied local `origin/main` snapshot; it cannot prove its freshness. It never fetches, pushes, merges, resets, rebases, updates `main`, or marks a card done.
-14. Require the worktree root. Its discovered repository worktrees must match `repo_set(card.repo)` exactly. Before any cleanup or per-repo validation, report the first missing repo in sorted name order as `<repo>: missing worktree <path>; cleanup requires every repository in the card's set`. If none is missing, report the first unexpected repo in sorted order as `<repo>: unexpected worktree <path>; cleanup only handles the card's repository set`. `<path>` is `<wt_root>/<repo>`. Do not remove any worktree or branch on either failure. After this set check, preflight every expected repository worktree in name order before removing anything. Require its HEAD on `card/<ID>` and a clean status. Resolve its branch tip, require `refs/remotes/origin/main` to exist, require the main checkout on `main`, require local `main` equal to that remote-tracking tip, and require the card tip to be an ancestor of that tip. These checks also apply to dependency-only repositories; a tip already present in remote main needs no new PR. A failed preflight leaves all worktrees and branches intact. Remove the old "main moved" and "unchanged user" rules; a PR merge normally moves main.
-15. After preflight, remove each worktree without `--force`, then delete only its `refs/heads/card/<ID>` with the preflight tip as the expected old value using `git update-ref -d`. If a Git cleanup command fails, stop with the usual Git-command error. Earlier successful cleanup is not rolled back; main was never changed. A concurrently changed branch must be retained by the expected-tip check. Print `cleaned <repo> <tip>` only after that repo's cleanup succeeds. Finally remove the now-empty worktree root with `rmdir`, not recursive deletion. If `rmdir` raises OSError with errno ENOTEMPTY or EEXIST, report `worktree <path> is not empty after cleanup; remove its remaining files by hand`. For every other OSError, report `worktree <path> could not be removed: <error>`, where `<error>` is `str(error)`. Both are DispatchError messages, so the CLI prints its `dispatch: ` prefix and returns 2. Do not let an OSError traceback escape. Do not delete unknown remaining files. A partial Git cleanup failure can leave an incomplete repository set; a retry must refuse it under rule 14 rather than silently skipping it. Ask the lead to inspect and finish that cleanup manually.
-16. The `land` help text is `verify merged card tips and remove the worktrees`. No fast-forward/rollback CLI or output remains. T1 itself follows the same PR flow, even though its initial worktree is created by hand after dispatch approval. The lead creates `card/T1` at `local/worktrees/T1/skk` from synchronized local `main`, commits its documentation there by explicit path if not already on main, then asks the manager to start its worker. The manager merges, fetches and pulls before any cleanup. Card completion is `git merge-base --is-ancestor <implementation commit> origin/main` after the manager's fetch, not merely passing the worker gate. Record `Status: done` in the next PR.
+13. Land remains the explicit refusal in rule 1 until T5. The T1 land help is `post-merge cleanup is unavailable until T5`. No local-main fast-forward, rollback or hidden merge mode remains.
+14. T1 itself starts in a worktree the lead creates by hand after manager dispatch approval. Its implementation and metadata go through the manager's PR. Cleanup before T5 is a separate manual lead operation only after manager confirmation of merge; this card does not automate it.
+15. T4 and T5 define their own gates, tests and failure messages. Their code and tests are not part of T1.
+16. No card is done merely because its worker gate passed. The lead checks the implementation commit's ancestry in the manager-maintained origin/main snapshot after the manager's fetch. Status: done is recorded in the next PR. The lead does not fetch, pull or push.
 
 ### Messages and output retained by the port
 
@@ -68,28 +68,25 @@ Files: `bin/dispatch.py`, `bin/test_dispatch.py`, `bin/TASKS.md`.
 | full gate | `full gate: <command>` |
 | changes outside card | `changes outside Files:` followed by one line `  <repo>/<path>` per path in repo-name then status order |
 | no outside changes | `no changes outside Files` |
-| review/land missing worktree | `no worktree <path>` |
+| review missing worktree | `no worktree <path>` |
 | main review has no changes | `no uncommitted changes in <requested paths joined with ', '> of <repo>` |
-| worktree off its branch | `<repo>: the worktree is not on card/<ID>; check out card/<ID> and commit there` |
-| dirty worktree | `<repo>: worktree has uncommitted changes; commit or discard them first` |
-| missing remote main snapshot | `<repo>: origin/main is missing; ask skk-manager to fetch` |
-| local main not synchronized | `<repo>: main differs from origin/main; ask skk-manager to pull --ff-only` |
-| unmerged card tip | `<repo>: card/<ID> is not merged into origin/main; ask skk-manager to merge its pull request and fetch` |
+| contract-only review refusal | the exact DispatchError in rule 2 |
+| mixed review reminder | `manager review also required for <ID>` |
+| cargo workflow refusal | the exact DispatchError in rule 10 |
+| land refusal | the exact DispatchError in rule 1 |
 | failed Git command | `git <arguments joined with spaces>: <stripped stderr>` |
 | top-level argparse description | the complete module docstring in rule 21 |
 | ambiguity help | `review cards for missing decisions` |
 | card help | `make the worktrees and run the implementer` |
-| review help | `run the second reviewer on a worktree or the main checkout` |
-| land help | `verify merged card tips and remove the worktrees` |
+| review help | `run an external security review or refer a contract review to the manager` |
+| land help | `post-merge cleanup is unavailable until T5` |
 | gate result | `gate exit <code>` |
-| prime result/error | the exact lines and error in rule 11 |
-| cleanup success/root failure | the exact lines and errors in rule 15 |
-| missing/unexpected repository worktree | the exact errors in rule 14 |
+| missing/unexpected repository worktree | the exact errors in rule 8 |
 | worker output paths and status | `answer <absolute path>`, then `log <absolute path>`, then `exit <code>` |
 | harness warning | `the worker did not start (cause:harness). Report it; do not switch the model or the runner.` |
 
 18. Retain these output-file rules: create `root/local/agents`; use UTC format `%Y%m%dT%H%M%SZ`; write `<UTC>-<name>.md` for stdout and `.log` for stderr, UTF-8. Never overwrite either existing file: try `-2`, `-3`, etc. if either name is taken. The verb names are `ambiguity-<IDs joined with '-'>`, `ambiguity-all`, `card-<ID>`, `review-<ID>`, `review-<ID>-main`. The worker command is `<worker> [--read-only] <workdir> <route tokens>`, brief on stdin. Only `card` omits `--read-only`. No fallback or retry is added. Before T2, a nonzero status and `UNKNOWN_MODEL` or `MISSING_CREDENTIAL` anywhere in the log prints the harness warning once; do not enlarge T1 into T2.
-19. Outside-Files detection compares each worktree's porcelain status paths with the card's `Files:` patterns via case-sensitive fnmatch, and allows paths only in the card repo. For a rename or copy, consider both source and destination. Handle NUL-delimited paths, non-ASCII paths and literal ` -> ` in names. Never write git state in an actual main checkout while detecting status; use `GIT_OPTIONAL_LOCKS=0` for status subprocesses if needed.
+19. Outside-Files detection compares each worktree's porcelain status paths with the card's `Files:` patterns via case-sensitive fnmatch, and allows paths only in the card repo. For a rename or copy, consider both source and destination. Handle NUL-delimited paths, non-ASCII paths and literal ` -> ` in names. Every git status subprocess must explicitly receive GIT_OPTIONAL_LOCKS=0, including calls with a leading -c option, cards-file checks, dirty-main warnings, review probes and T5 cleanup preflight. Apply it in temporary repositories too. There is no conditional "if needed" choice. Do not mutate os.environ globally or refresh an actual checkout's index while detecting status.
 
 ### Complete worker-facing prose
 
@@ -104,7 +101,7 @@ Read `/data/softwares/kstack/agents/poteto-agent.md` in full and follow it. kiya
 `never`, with root filled in:
 
 ```text
-Never read anything under `/data/references/`, under `{root}/local/agents/`, or under `{root}/local/worktrees/` outside the worktree this brief names (if it names one), or any credentials (API keys, tokens, `.env` files, DSH or provider configuration). Never open, list, or copy the owner's real dictionaries or IME files: `~/.local/share/fcitx5/skk/user.dict`, `~/.skkeleton`, `~/.skk-jisyo`, or any CorvusSKK `userdict.txt`. Search only the paths this brief and the card name. Never run `grep -r` or any other recursive search from `{root}`, from a worktree root, from a repository root, or from your home directory.
+Never read anything under `/data/references/`, under `{root}/local/agents/`, or under `{root}/local/worktrees/` outside the worktree this brief names (if it names one), or any credentials (API keys, tokens, `.env` files, DSH or provider configuration). Never open, read, list, copy, or pass to any tool the owner's real dictionaries or IME files: `~/.local/share/fcitx5/skk/user.dict`, `~/.skkeleton`, `~/.skk-jisyo`, or any CorvusSKK `userdict.txt`, or anything else under `~/.local/share/fcitx5/`, `~/.config/fcitx5/`, `~/.config/ibus/`, or `~/.config/nvim/`. Never write to any of those dictionary or IME paths. Code you ship must not name them as defaults. Search only the paths this brief and the card name. Never run `grep -r` or any other recursive search from `{root}`, from a worktree root, from a repository root, or from your home directory.
 ```
 
 `CARD_BRIEF`; `tasks` is `tasks_path(card.repo)`; `files` is the backtick-quoted Files list joined with `, `:
@@ -186,7 +183,7 @@ Diff of each repository worktree since it left main (`git diff $(git merge-base 
 Untracked files (read each one):
 {untracked_lines}
 
-Read the whole supplied diff and every permitted file it touches or names through the final line, not only its hunks. Never bypass a prohibited path; list it as unread. A finding about ddskk or another engine's behavior requires the manual or source code as a primary source, quoted with line numbers. Mark a finding unverified if you cannot check that source.
+This is the external security review only. It does not replace skk-manager review of contracts, migrations or data shapes another repository uses. Read every document and section cited in the card's Spec, not only AGENTS.md and SPEC.md. Read the whole supplied diff and every permitted file it touches or names through the final line, not only its hunks. Never bypass a prohibited path; list it as unread. A finding about ddskk or another engine's behavior requires the manual or source code as a primary source, quoted with line numbers. Mark a finding unverified if you cannot check that source.
 
 Report every defect: a rule of the card, `SPEC.md`, or `AGENTS.md` that the diff breaks; a named test that is missing or does not assert what the card says; a bug; a changed file that is not on the card's `Files:` line.
 
@@ -205,7 +202,7 @@ Be concrete. Skip style comments. Do not propose code.
 ```text
 {opening}
 
-Goal of the owner: before card {id} of the skk project runs, its lead changed files in the main checkout of repository `{repo}`, usually a contract that other repositories consume. You are the second reviewer, read-only, before the lead commits the change. Do not edit, create, or delete any file. Do not commit.
+Goal of the owner: before card {id} of the skk project runs, its lead changed a security or privacy guard in the main checkout of repository `{repo}`. You are the second reviewer, read-only, before the lead commits the change. Do not edit, create, or delete any file. Do not commit.
 
 `{root}/AGENTS.md` holds the rules the implementer of the card will follow.
 
@@ -224,7 +221,7 @@ Uncommitted change in the main checkout (`git diff HEAD`):
 Untracked files (read each one):
 {untracked_lines}
 
-Read the whole supplied diff and every permitted file it touches or names through the final line, not only its hunks. Never bypass a prohibited path; list it as unread. A finding about ddskk or another engine's behavior requires the manual or source code as a primary source, quoted with line numbers. Mark a finding unverified if you cannot check that source.
+This is the external security review only. It does not replace skk-manager review of contracts, migrations or data shapes another repository uses. Read every document and section cited in the card's Spec, not only AGENTS.md and SPEC.md. Read the whole supplied diff and every permitted file it touches or names through the final line, not only its hunks. Never bypass a prohibited path; list it as unread. A finding about ddskk or another engine's behavior requires the manual or source code as a primary source, quoted with line numbers. Mark a finding unverified if you cannot check that source.
 
 Report every defect: a bug or a gap in the change; a rule of the card, `SPEC.md`, or `AGENTS.md` that the change breaks or leaves unstated; a part of the card that the change cannot support; code in {consumers} that the change breaks.
 
@@ -241,13 +238,13 @@ Be concrete. Skip style comments. Do not propose code.
 21. Replace the entire module docstring, including its first line and the old Go sentence, with this text. This is not a clause-only replacement:
 
 ```text
-Dispatch one DSH worker on a skk card, card review, or post-merge cleanup.
+Dispatch skk cards and external security reviews.
 
 Run from the project root:
 
     python3 bin/dispatch.py ambiguity [ID ...]
     python3 bin/dispatch.py card ID [--no-worker]
-    python3 bin/dispatch.py review ID [--main PATH ...]
+    python3 bin/dispatch.py review ID --kind {security,contract,both} [--main PATH ...]
     python3 bin/dispatch.py land ID
 
 Cards are `## <ID>. <title>` sections of each child repository's `TASKS.md`.
@@ -255,15 +252,15 @@ The parent repository's cards are in `bin/TASKS.md`, under the name `skk`.
 `ambiguity` with IDs reviews those cards whatever their status; without IDs
 it reviews every card that is not done. `card` creates the repository set's
 worktrees under `local/worktrees/<ID>`, on branch `card/<ID>`, from local main.
-Before any worker starts, cargo repositories are primed with
-`cargo test --locked --no-run --all-targets`. Cargo runs offline and its target
-directory is inside each worktree. `--no-worker` still performs this prime.
+Cargo workflows are unavailable until T4 adds offline dependency preparation.
+Non-cargo workers still receive the offline cargo environment.
 `review` shows changes since the merge-base of main and HEAD; `--main` instead
 shows selected uncommitted changes in the main checkout.
-`land` verifies card tips against the manager-fetched `origin/main` snapshot
-and removes only merged card worktrees and branches. The manager must merge
-the pull requests, fetch, and pull local main first. No verb accesses GitHub,
-merges locally, or advances main. Cleanup cannot prove snapshot freshness.
+`review --kind contract` refuses and refers the lead to skk-manager.
+`review --kind both` starts only the security component and reminds the lead
+that manager review is also required. No verb records manager approval.
+`land` is unavailable until T5 adds post-merge verification and cleanup.
+No verb accesses GitHub, merges locally, or advances main.
 Only `card` starts a writable worker. `review` runs the gate before starting
 its read-only worker and includes its exit code and last lines in the brief.
 Worker answers and logs go to `local/agents/<UTC>-<name>.md` and `.log`;
@@ -283,8 +280,12 @@ The child cards file starts with `# <repo> tasks` and a blank line. Each row bel
 | eval | E1 | Build queries | open | omitted | `impl.go`, `impl_test.go`, `testdata/docs/*.txt` | Build queries. |
 | learn | N1 | Lessons | open | omitted | `lesson.go` | Write the lessons. |
 | web | W1 | Shell | open | omitted | `index.html` | Build the shell. |
+| jisyo | J1 | Fixture dictionary | open | `Needs: nothing.` | `impl.rs` | Build the synthetic dictionary. |
+| conformance | C1 | Fixture conformance | open | `Needs: nothing.` | `runner.py` | Run synthetic cases. |
 
-23. For cleanup tests, prepare synthetic origin snapshots using temporary local bare repositories, never GitHub. A fixture helper may simulate the manager pushing a card, merging it with a merge commit in another temporary checkout, fetching origin and pulling fixture main. Dependency-only repositories have an origin snapshot containing their original tips. The helper is fixture setup, not the system under test. Snapshot refs, worktree registrations and branch tips before each refused cleanup and assert they remain unchanged. Success must not change main or origin/main. A fake Git executable may inject a cleanup failure or late branch update at the process boundary; it must delegate other commands to real Git and use only temporary fixture paths.
+Only the real-graph tests use the J1/C1 rows. They replace the old child-repository set with jisyo/conformance, keep the parent T1 fixture, and create no Cargo.toml until a T4 test explicitly asks for one.
+
+23. T1's fixtures do not need origin snapshots, cargo primes or cleanup races. Those fixtures belong to T4 and T5. In every test table of these cards, a review invocation written without a kind suffix means the test must explicitly pass --kind security at the call site; the test harness must not insert a production default. The dedicated kind-selection tests use their stated arguments instead.
 24. Replace direct helper tests with the following CLI tests. Delete `test_card_writes_go_work_with_the_version_of_the_parent` and every old `test_land*` function; the cleanup rows below replace them. Retain other existing test names only for their single behavior, rewrite their setup/asserts to the rules above, and remove expected values computed by dispatcher helpers. Replace private-helper fault injection with external executable fault injection. The table lists the required coverage, including renamed/split cases.
 
 | Test | Setup and observable assertions |
@@ -295,7 +296,7 @@ The child cards file starts with `# <repo> tasks` and a blank line. Each row bel
 | `test_duplicate_card` | Add E1 to rag; `ambiguity E1` exits 2 with `dispatch: card E1 is in two repositories: eval, rag\n`. |
 | `test_card_without_worker` | `card E1 --no-worker`; set directories are adopt, eval, learn, llmgw, rag, server, all on card/E1; no worker run. |
 | `test_card_does_not_write_go_workspace` | `card E1 --no-worker`; no go.work or go.work.sum anywhere in its worktree root, and no GOWORK in printed gates. |
-| `test_help_describes_post_merge_cleanup` | Root `--help` returns argparse status 0 and contains the complete rule 21 docstring, with no aistore or local fast-forward claim; `land --help` describes only merged-tip verification and cleanup. |
+| `test_help_describes_available_verbs` | Root --help exits 0 and contains rule 21's ported docstring with required review kind. Land help says cleanup is unavailable until T5, with no local fast-forward claim. |
 | `test_child_gate_commands` | `card E1 --no-worker`; narrow is `CARGO_NET_OFFLINE=true CARGO_TARGET_DIR={wt}/eval/target make -C {wt}/eval check`; full appends the same form for server with ` && `. Execute the narrow command, exit 0. |
 | `test_card_in_learn_brings_web` | `card N1 --no-worker`; set includes web, full gates are learn, server, web in that order. |
 | `test_real_jisyo_repository_set` | Use real USES, synthetic jisyo/conformance repos with cards J1/C1, no old children; `card J1 --no-worker`; worktrees jisyo and conformance, full gates jisyo then conformance. |
@@ -319,7 +320,7 @@ The child cards file starts with `# <repo> tasks` and a blank line. Each row bel
 | `test_off_list_reports_both_sides_of_a_rename` | Before fake worker returns, its script runs git mv in temporary worktree for SPEC.md to impl_test.go and TASKS.md to other.go; CLI lists eval/SPEC.md, eval/TASKS.md, eval/other.go, not allowed impl_test.go. |
 | `test_off_list_reports_a_name_with_an_arrow` | Fake worker writes eval/impl.go -> x.go; CLI lists the full literal path. |
 | `test_off_list_reports_a_non_ascii_path` | Fake worker writes eval/メモ.txt with core.quotepath true; CLI lists that path, not escaped bytes. |
-| `test_harness_failure_is_reported_once` | Fake worker exits 2 with `error: UNKNOWN_MODEL: nope`; CLI prints the literal harness warning once. |
+| `test_harness_failure_is_reported_once` | Fake worker exits 2 with `dsh: UNKNOWN_MODEL: nope`; CLI prints the literal harness warning once. |
 | `test_harness_line_needs_a_nonzero_exit` | Worker exits 0 with bare `MISSING_CREDENTIAL`; CLI exit 0, no harness warning. This is not a colon-form DSH failure; T2 preserves this test. |
 | `test_run_worker_never_overwrites_output` | Fixed clock 20260102T030405Z; invoke `ambiguity E1` twice; original and -2 answer/log pairs retain exact fake output. |
 | `test_run_worker_skips_a_taken_name` | Pre-create only the fixed-time answer; invoke ambiguity E1; original preserved, -2 pair written. |
@@ -341,6 +342,15 @@ The child cards file starts with `# <repo> tasks` and a blank line. Each row bel
 | `test_read_only_briefs_report_failed_commands` | Same forms; each requires a DENIED line listing every failed or denied command, or DENIED none, before TOTAL or STOPPED. |
 | `test_read_only_briefs_stop_without_total` | Same forms; each requires STOPPED with a reason and no TOTAL if review stops without reviewing. |
 | `test_review` | Worktree committed impl.go change and untracked notes.txt; review brief contains card, committed diff and absolute untracked path, with merge-base description from rule 20. |
+| `test_review_requires_a_declared_kind` | review E1 without --kind exits 2 through argparse, mentions --kind and starts no worker. |
+| `test_review_refuses_contract_kind` | review E1 --kind contract, without worktrees, exits 2 with rule 2's exact manager-referral message; no gate, output files or worker. |
+| `test_main_review_refuses_contract_kind` | review R1 --kind contract --main guard.py also refuses before inspecting a baseline, running a gate or starting a worker. |
+| `test_review_both_starts_only_security_component` | E1 worktrees; review E1 --kind both prints the manager-review reminder before gate exit, starts only one Astra read-only worker and does not report manager approval. |
+| `test_review_rejects_missing_repository` | E1 worktrees, remove rag's worktree but leave its branch; review --kind security exits 2 with rule 8's missing-set error and runs neither gate nor worker. |
+| `test_review_rejects_unexpected_repository` | Add a web worktree to E1's root; review exits 2 with rule 8's unexpected-set error before gate/worker. |
+| `test_main_review_requires_main_branch` | Dirty requested guard.py in rag, but rag main checkout is on another branch; --main review exits 2 with the existing off-main error, no gate/worker. |
+| `test_review_briefs_name_spec_documents` | Worktree review and --main review briefs both explicitly require every document and section cited in the card's Spec. |
+| `test_status_commands_disable_optional_locks` | Via card and review CLI calls, a fake Git executable records only GIT_OPTIONAL_LOCKS on actual status subprocesses, never the full environment, then delegates to real Git. Every recorded status, including -c-prefixed cards-file status, has GIT_OPTIONAL_LOCKS=0. No dispatcher helper is mocked or internal call order asserted. |
 | `test_review_worker_route` | `review E1`; read-only flag, eval workdir and literal Astra route from rule 2, no Gemini or lead-model substitution. |
 | `test_review_inherits_environment` | `review E1`; cargo.txt stripped is `|`. |
 | `test_review_lists_untracked_files_as_absolute_paths` | Untracked eval/notes.txt and learn/other.txt; review lists both absolute paths. |
@@ -348,10 +358,10 @@ The child cards file starts with `# <repo> tasks` and a blank line. Each row bel
 | `test_review_runs_the_gate_before_the_reviewer_even_when_it_fails` | eval Makefile prints gate-marker and exits 3; make returns 2, fake reviewer still runs; brief says exited 2 and contains marker, CLI reports gate exit 2 and returns reviewer 0. This is gate-failure delivery, not a mock call-order assert. |
 | `test_review_shows_every_changed_repository` | Committed eval and rag changes, untracked learn note; brief's diff sections eval then rag, learn note only in untracked paths. |
 | `test_review_ignores_commits_main_gained_after_the_dispatch` | Change eval worktree, then commit separate main-only files in rag/eval; review contains only worktree delta. |
-| `test_review_main` | Dirty rag contract.go, unrelated dirty other.go, requested untracked new.txt; `--main contract.go new.txt` includes only requested diff/untracked, names root/rag. |
+| `test_review_main` | Synthetic rag guard.py changes from `guard = True` to `guard = False`, unrelated dirty other.py and requested untracked new.txt; review R1 --kind security --main guard.py new.txt includes only requested diff/untracked and names root/rag. This fixture is a security-guard change, not a pure contract review. |
 | `test_review_main_names_the_users` | Review rag main change; consumers are rag, eval, learn, adopt, server, web with absolute paths in that order. |
-| `test_review_main_runs_the_cargo_gate` | Rename old test_review_main_pins_gowork; rag main contract change; brief has rule 9 gates for rag and server; no gowork.txt assert. |
-| `test_review_main_inherits_environment` | `review R1 --main contract.go`; cargo.txt stripped is `|`. |
+| `test_review_main_runs_the_cargo_gate` | Rename old test_review_main_pins_gowork; synthetic rag guard.py security change, no Cargo.toml; brief has rule 9's child gate strings for rag and server; no gowork.txt assert. The Makefile fixture is synthetic and does not invoke cargo. |
+| `test_review_main_inherits_environment` | Synthetic guard.py security change; `review R1 --kind security --main guard.py`; cargo.txt stripped is `|`. |
 | `test_review_main_without_changes` | No change in requested SPEC.md; exit 2 with exact rule 17 message, no worker. |
 | `test_review_without_main_still_needs_a_worktree` | No worktree; review E1 exits 2 with exact missing-worktree message. |
 | `test_parent_cards_are_read_from_bin` | Add notrepo/TASKS.md without .git, local/TASKS.md with local/.git, bin/TASKS.md already exists; ambiguity brief has T1 as repo skk, no notrepo/local/bin cards. |
@@ -363,46 +373,22 @@ The child cards file starts with `# <repo> tasks` and a blank line. Each row bel
 | `test_card_dictionary_fence` | `card E1`; received brief includes the exact dictionary sentence in rule 20. |
 | `test_ambiguity_dictionary_fence` | `ambiguity E1`; same dictionary sentence. |
 | `test_review_dictionary_fence` | `review E1`; same dictionary sentence. |
-| `test_main_review_dictionary_fence` | Main review of rag change; same dictionary sentence. |
+| `test_main_review_dictionary_fence` | Main security review of rag change; same dictionary sentence. |
+| `test_full_ime_directory_fence` | Via card, ambiguity, security review and main security review, every brief includes all four AGENTS rule 7 directory prefixes and the exact never-write sentence from rule 20, not only the named dictionary files. |
 | `test_briefs_share_the_search_rule_and_name_the_worktree` | Via separate card and review invocations, check the exact search restriction and named current worktree from rule 20; this row no longer tests the dictionary guard. |
-| `test_card_uses_locked_prime` | Commit eval Cargo.toml; supply fake cargo on PATH, without replacing PRIME; `card E1 --no-worker`; recorded cargo arguments are exactly `test`, `--locked`, `--no-run`, `--all-targets`. |
-| `test_card_primes_cargo` | Commit synthetic Cargo.toml in eval; replace PRIME with a fake executable that records cwd and cargo vars; exactly `{wt}/eval|true|{wt}/eval/target`, one prime line `prime eval exit 0`; worker observes prime record already exists. |
-| `test_card_primes_with_no_worker` | Same cargo fixture; `card E1 --no-worker` still records one prime, zero worker runs. |
-| `test_card_does_not_prime_without_a_manifest` | Default fixture; `card E1` records no prime even with a supplied PRIME executable. |
-| `test_card_stops_when_the_prime_fails` | PRIME prints prime-marker and exits 4; CLI exits 2 with rule 11 error, includes marker; no worker or card worktrees/branches. |
-| `test_failed_prime_tail_is_twenty_lines` | PRIME emits 25 numbered synthetic lines and exits 4; error contains only lines 6 through 25 after Last lines, not lines 1 through 5. |
-| `test_failed_prime_without_output` | PRIME exits 4 silently; error ends `Last lines:\n(no output)\n`. |
-| `test_land_after_a_merge_commit` | Synthetic manager merges E1 eval with merge commit, fetches and pulls all fixtures; `land E1` removes registered worktrees, branches and empty wt root, prints cleaned lines with preflight tips; main/origin refs unchanged. |
-| `test_land_in_the_parent` | Same PR simulation for T1 parent with committed bin/new.py; cleanup succeeds via root rather than root/skk; main/origin unchanged. |
-| `test_land_refuses_an_unmerged_tip` | Origin/main lacks E1 eval commit and main equals origin; exit 2 with exact unmerged-tip error; no cleanup anywhere. |
-| `test_land_refuses_missing_origin_main` | Otherwise merged fixture, delete eval origin/main; exit 2 with missing-snapshot error; no cleanup. |
-| `test_land_refuses_unsynchronized_main` | Merged eval remote snapshot, local main still at prior tip; exact sync error, no cleanup. |
-| `test_land_refuses_main_checkout_off_main` | Merged snapshots; main checkout switched to other branch; exact off-main error, no cleanup. |
-| `test_land_refuses_a_dirty_worktree` | Otherwise merged snapshots; rag worktree has dirty.txt; exact dirty error; all registrations and refs preserved. |
-| `test_land_stops_on_a_detached_worktree` | Otherwise merged snapshots; detach rag worktree; exact branch error; all registrations and refs preserved. |
-| `test_land_needs_a_worktree` | Missing root; exit 2 with rule 17 error. |
-| `test_land_refuses_a_missing_repository_worktree` | Eligible E1 fixture, manually remove only rag's registered worktree but retain its card/E1 branch; land exits 2 with rule 14's missing-worktree error; that branch and every remaining worktree/ref are unchanged. |
-| `test_land_refuses_an_unexpected_repository_worktree` | Eligible E1 fixture; add a separate web worktree on card/E1 under its root. web is outside E1's set. land exits 2 with rule 14's unexpected-worktree error; no worktree or branch is removed. |
-| `test_land_preflights_all_repositories` | Earlier adopt repo eligible, later eval tip unmerged; neither worktree removed; main unchanged. |
-| `test_land_keeps_main_checkout_changes` | Eligible cleanup, synthetic main has staged SPEC edit and ignored file; cleanup preserves both bytes and staged diff as well as main ref. |
-| `test_land_keeps_a_branch_that_gained_commits` | External fake Git updates learn card branch after worktree removal but before expected-tip delete; cleanup exits 2, preserves new tip; main unchanged. No mock of dispatch.git. |
-| `test_land_reports_root_removal_io_error` | Eligible cleanup; inject `PermissionError('synthetic-rmdir-denial')` at Path.rmdir while invoking land. CLI exits 2 with `dispatch: worktree {wt} could not be removed: synthetic-rmdir-denial\n`, not a traceback; main refs unchanged. |
-| `test_land_keeps_unknown_files_under_its_root` | Eligible cleanup, extra wt/keep.txt; worktrees cleaned but root removal fails with exact rule 15 error; keep.txt unchanged. |
+| `test_card_refuses_cargo_until_T4` | Commit Cargo.toml in eval; card E1 --no-worker exits 2 with `dispatch: eval: cargo workflows are unavailable until T4\n`; no worktrees, branches or worker. T4 replaces this test with its priming tests. |
+| `test_review_refuses_cargo_until_T4` | First create non-cargo E1 worktrees, then add an eval Cargo.toml; review E1 --kind security exits 2 with the same temporary error, no gate or reviewer. T4 replaces this test with its ignore preflight tests. |
+| `test_land_is_unavailable_until_T5` | card E1 --no-worker creates fixtures; land E1 exits 2 with rule 1's exact temporary error. All worktrees and refs remain. T5 replaces this refusal test with cleanup tests. |
 
 Must fail without: draft-card dispatch rejection → `test_card_refuses_a_draft_card`.
 Must fail without: read-only no-write instruction → `test_read_only_briefs_forbid_all_writes`.
-Must fail without: repository-set completeness check → `test_land_refuses_a_missing_repository_worktree`.
-Must fail without: unexpected repository rejection → `test_land_refuses_an_unexpected_repository_worktree`.
-Must fail without: failed-prime stop → `test_card_stops_when_the_prime_fails`.
+Must fail without: contract-only route refusal → `test_review_refuses_contract_kind`, `test_main_review_refuses_contract_kind`.
+Must fail without: review repository-set completeness check → `test_review_rejects_missing_repository`.
+Must fail without: unexpected review repository rejection → `test_review_rejects_unexpected_repository`.
+Must fail without: main-review branch check → `test_main_review_requires_main_branch`.
+Must fail without: optional-lock suppression → `test_status_commands_disable_optional_locks`.
 Must fail without: dictionary sentence → `test_card_dictionary_fence`, `test_ambiguity_dictionary_fence`, `test_review_dictionary_fence`, `test_main_review_dictionary_fence`.
-Must fail without: merged-tip ancestry check → `test_land_refuses_an_unmerged_tip`.
-Must fail without: remote-snapshot existence check → `test_land_refuses_missing_origin_main`.
-Must fail without: local-main synchronization check → `test_land_refuses_unsynchronized_main`.
-Must fail without: worktree cleanliness check → `test_land_refuses_a_dirty_worktree`.
-Must fail without: worktree branch check → `test_land_stops_on_a_detached_worktree`.
-Must fail without: complete preflight before cleanup → `test_land_preflights_all_repositories`.
-Must fail without: expected-tip branch deletion → `test_land_keeps_a_branch_that_gained_commits`.
-Must fail without: nonrecursive root removal → `test_land_keeps_unknown_files_under_its_root`.
+Must fail without: full IME directory and write fence → `test_full_ime_directory_fence`.
 
 Done: the parent gate exits 0 in the worker's worktree. The lead then verifies each named guard and the full diff, obtains Astra security review and manager review under the live project rules, and reports the implementation commit to the manager for its PR. T1 is not done until the commit is an ancestor of manager-fetched origin/main. Never merge or advance main locally.
 
@@ -412,18 +398,18 @@ Status: open
 
 Needs: T1 merged into origin/main.
 
-Spec: this card, the introduction "Project rules for all three cards", and T1's rules, prose templates and test-fixture description in `bin/TASKS.md`; `AGENTS.md`; `CLAUDE.md`, sections "GitHub" and "Card flow"; `/data/softwares/kstack/skills/card-flow/SKILL.md`, sections "Project adapter", "2. Review the cards for ambiguity" and "4. Review the diff"; `/data/softwares/kstack/skills/kiyama-mode/scripts/run-worker-project.mjs`, the stderr projector.
+Spec: this card, the introduction "Project rules for tools cards", and T1's rules, prose templates and test-fixture description in `bin/TASKS.md`; `AGENTS.md`; `/data/softwares/skk/CLAUDE.md`, sections "GitHub" and "Card flow"; `/data/softwares/kstack/skills/card-flow/SKILL.md`, sections "Project adapter", "2. Review the cards for ambiguity" and "4. Review the diff"; `/data/softwares/kstack/skills/kiyama-mode/scripts/run-worker-project.mjs`, the stderr projector.
 
 Files: `bin/dispatch.py`, `bin/test_dispatch.py`, `bin/TASKS.md`.
 
-The worker does not edit `bin/TASKS.md`. T2 changes only worker-result classification and ambiguity summary output. All CLI forms, routes, complete brief prose, repository discovery, cargo gates/prime, cleanup-only land, output filenames and messages are specified by T1 above, not by an aistore source. Do not add another merge path or worker fallback.
+The worker does not edit `bin/TASKS.md`. T2 changes only worker-result classification and ambiguity summary output. All CLI forms, kind selection, routes, complete brief prose, repository discovery, gates, temporary cargo/land refusals, output filenames and messages are specified by T1 above, not by an aistore source. Cargo priming and real cleanup remain T4 and T5 work. Do not add another merge path or worker fallback.
 
 ### Worker results
 
-1. Rename the current body of `run_worker` to `_run`, keeping its parameters and returning `(code, answer, log)`. The public `run_worker` keeps its signature and returns the status only. Test via the CLI, not either helper. Keep the output paths and exact lines `answer <path>`, `log <path>`, `exit <code>`, and the exact harness warning `the worker did not start (cause:harness). Report it; do not switch the model or the runner.`
+1. Rename the current body of run_worker to _run, retaining its existing parameters and adding optional keyword-only check_trees=None, returning (code, answer, log). check_trees is a sequence of repository checkout Paths for rule 3; None means only workdir. The public run_worker keeps its original signature and returns _run's status only. Card calls _run with all of its set's worktree Paths and uses the returned status; ambiguity and review use the selected workdir for their read-only checks. Test via the CLI, not either helper. Keep the output paths and exact lines `answer <path>`, `log <path>`, `exit <code>`, and the exact harness warning `the worker did not start (cause:harness). Report it; do not switch the model or the runner.`
 2. Before printing `exit`, read the log as UTF-8 with replacement decoding. A DSH failure is a line matching `^dsh: ([A-Z][A-Z0-9_]*):`. Collect group 1 once per distinct code in first-appearance order. If any occur, print `dsh failure <codes joined with ', '>`. Change status 0 to 1, preserve a nonzero status, and use that resulting status for printing, classification and return. Never print the remainder of a DSH failure line, since it may contain provider text. Answer and log files remain unchanged. This applies to every worker verb, not just card.
 2b. For a read-only review or ambiguity run, also read the answer as UTF-8 with replacement decoding. Its last nonempty stripped line must match `TOTAL <nonnegative decimal integer>` or `STOPPED <nonempty reason>`. If it does not, print `incomplete review answer: missing TOTAL or STOPPED` before the exit line. Change status 0 to 4; preserve any already nonzero status, including a DSH failure status from rule 2 or runner exit 4. This marker check does not apply to card implementers. A STOPPED report is a completed report of a stopped review, not review approval; it must have no TOTAL. The dispatcher does not infer the stop rule or a clean review from its process status.
-3. On a nonzero resulting status, print the harness warning once if either holds: no line begins `dsh: tool:` and no line begins `dsh: reasoning:`; or a line starting with none of `dsh: tool`, `dsh: reasoning:`, and two spaces contains `UNKNOWN_MODEL` or `MISSING_CREDENTIAL`. Otherwise do not print it. A quoted marker in tool target/reasoning text is not evidence of failure. Projector lines start lowercase after `dsh: `; they do not match rule 2. Bare `MISSING_CREDENTIAL` without the DSH colon form still does not turn an exit 0 into failure.
+3. Follow card-flow's narrow harness test, not the former no-tool/no-reasoning heuristic. On a nonzero resulting status, print the harness warning once if a log line starts exactly `dsh: UNKNOWN_MODEL:` or `dsh: MISSING_CREDENTIAL:`, or if the log is zero bytes and the relevant git worktrees have no status changes. For card, inspect every repository worktree in that card's set; for a read-only call, inspect its workdir repository. Private callers may pass the required context without changing the public run_worker signature. All status probes use T1's GIT_OPTIONAL_LOCKS=0 rule. A nonempty unstructured log, or an empty log with worktree changes, does not prove the worker failed to start. Quoted markers elsewhere never count. Both diagnostic prefixes also match rule 2: print `dsh failure <codes>` before `exit <status>`, then the single harness warning after exit. Do not exclude UNKNOWN_MODEL or MISSING_CREDENTIAL from DSH failure classification. The output-path lines still come first, and the optional incomplete-answer line precedes exit. Bare MISSING_CREDENTIAL without the DSH colon form does not turn exit 0 into failure.
 
 ### Ambiguity summary
 
@@ -433,15 +419,19 @@ The worker does not edit `bin/TASKS.md`. T2 changes only worker-result classific
 
 ### Tests
 
-Use the T1 CLI fixture and fake-worker records. No direct tests of `_harness_failure`, `dsh_failures`, `_run`, `summarize_ambiguity` or internal print order. Output order on the CLI is an observable interface, not internal call order. Required rows each have their own test function. Existing T1 tests remain and must pass.
+Use the T1 CLI fixture and fake-worker records. No direct tests of `_harness_failure`, `_run`, `summarize_ambiguity` or internal print order. A helper named dsh_failures is not required; private factoring is an implementation choice, not a missing interface. Output order on the CLI is an observable interface, not internal call order. Required rows each have their own test function. Existing T1 tests remain and must pass.
 
 | Test | Synthetic CLI input and observable assertions |
 |---|---|
 | `test_harness_line_ignores_a_marker_in_a_tool_line` | Worker exits 1, stderr `dsh: tool: bash grep UNKNOWN_MODEL x`; card E1 returns 1, no warning. |
 | `test_harness_line_ignores_a_marker_in_a_tool_error` | Exit 1, stderr `dsh: tool: read a.rs` then `dsh: tool-error: bash exit-1 grep MISSING_CREDENTIAL x`; no warning. |
 | `test_harness_line_ignores_a_marker_in_reasoning` | Exit 1, stderr `dsh: reasoning:` and `  UNKNOWN_MODEL`; no warning. |
-| `test_harness_line_for_a_marker_outside_tool_lines` | Exit 2, stderr `dsh: tool: read a.rs` then `dsh: UNKNOWN_MODEL: no such model`; returns 2, warning once. |
-| `test_harness_line_when_no_tool_ran` | Exit 3, stderr `dsh: session: s` only; returns 3, warning once. |
+| `test_harness_line_for_a_marker_outside_tool_lines` | Exit 2, stderr tool read then dsh: UNKNOWN_MODEL: no such model; output order is dsh failure UNKNOWN_MODEL, exit 2, then the exact harness warning once. |
+| `test_missing_credential_is_both_dsh_and_harness_failure` | Exit 2, stderr dsh: MISSING_CREDENTIAL: unavailable; same ordering with code MISSING_CREDENTIAL and one warning. |
+| `test_nonempty_unstructured_log_does_not_prove_no_start` | Exit 3, stderr reasoning with no projector prefixes, fake worker writes eval/impl.go; returns 3, no harness warning. |
+| `test_session_only_log_does_not_prove_no_start` | Exit 3, stderr dsh: session: s only, no writes; no warning because log is not empty. |
+| `test_empty_log_and_clean_worktrees_is_harness_failure` | Exit 3, exactly zero stderr bytes, no writes; warning once. The fake worker must omit its stderr printf when stderr_text is empty. |
+| `test_empty_log_with_worktree_changes_is_not_harness_failure` | Exit 3, zero stderr bytes, fake worker writes eval/impl.go; no warning. |
 | `test_ambiguity_prints_a_summary_per_card` | stdout E1 kinds 1 and 4, R1 kind 3, TOTAL 3; ambiguity E1 R1 L2; exact E1 counts 1,0,0,1,0/yes, R1 counts 0,0,1,0,0/no, L2 all zero/no, in requested order; other 0, counted 3 reported 3. |
 | `test_ambiguity_summary_deduplicates_requested_ids` | Worker stdout `E1 | 1 | a | b | c`, TOTAL 1; ambiguity E1 R1 E1; one E1 summary kind1=1, one zero R1 summary, in that order; counted 1, reported 1. |
 | `test_ambiguity_summary_counts_footer_lines_as_other` | Worker stdout `UNREAD none`, `DENIED none`, `TOTAL 0`; ambiguity E1; other 2, counted 0 reported 0. |
@@ -471,9 +461,9 @@ Use the T1 CLI fixture and fake-worker records. No direct tests of `_harness_fai
 | `test_dsh_failure_fails_a_review_run` | Create E1 worktree, review fake worker exit 0 and stderr tool read then PI_AI_ERROR; review returns 1. |
 
 Must fail without: incomplete read-only answer rejection in rule 2b → `test_ambiguity_rejects_an_incomplete_exit_zero_answer`, `test_review_rejects_an_incomplete_exit_zero_answer`.
-Must fail without: tool-target exclusion in rule 3 → `test_harness_line_ignores_a_marker_in_a_tool_line`, `test_harness_line_ignores_a_marker_in_a_tool_error`.
-Must fail without: reasoning exclusion in rule 3 → `test_harness_line_ignores_a_marker_in_reasoning`.
-Must fail without: no-tool/no-reasoning rule → `test_harness_line_when_no_tool_ran`.
+Must fail without: anchored harness diagnostics → `test_harness_line_ignores_a_marker_in_a_tool_line`, `test_harness_line_ignores_a_marker_in_a_tool_error`, `test_harness_line_ignores_a_marker_in_reasoning`.
+Must fail without: empty-log plus clean-worktrees harness check → `test_empty_log_and_clean_worktrees_is_harness_failure`.
+Must fail without: worktree-change exception to the empty-log check → `test_empty_log_with_worktree_changes_is_not_harness_failure`.
 Must fail without: changing DSH-failed exit 0 to 1 → `test_dsh_failure_fails_an_exit_zero_run`, `test_dsh_failure_fails_an_ambiguity_run`, `test_dsh_failure_fails_a_review_run`.
 Must fail without: printing only failure codes → `test_dsh_failure_hides_the_provider_message`.
 
@@ -485,7 +475,7 @@ Status: open
 
 Needs: no implementation card. T3 merges before T1 so T1's PR has CI. The manager supplied the action pins and Python availability evidence; all values the worker needs are written below. No worker reads the manager's private evidence file.
 
-Spec: this card and the introduction "Project rules for all three cards" in `bin/TASKS.md`; `AGENTS.md`; `CLAUDE.md`, section "GitHub". The manager's turn identifies parent issue 4 as the CI request and issue 1 as the dispatcher step. No worker contacts GitHub.
+Spec: this card and the introduction "Project rules for tools cards" in `bin/TASKS.md`; `AGENTS.md`; `/data/softwares/skk/CLAUDE.md`, section "GitHub". The manager's turn identifies parent issue 4 as the CI request and issue 1 as the dispatcher step. No worker contacts GitHub.
 
 Files: `.github/workflows/check.yml`, `bin/test_ci_workflow.py`, `bin/TASKS.md`.
 
@@ -497,8 +487,8 @@ The worker changes only the workflow and its tests. `bin/TASKS.md` is lead-only.
 2. One job named `check` runs on `ubuntu-latest`. It checks out the PR's tested revision with credentials persistence disabled, sets up Python, then runs exactly `python3 -m unittest discover -s bin -p 'test_*.py'` from repository root in a bash step. Do not use continue-on-error or an if condition on the job or gate. No pip packages, real workers or network-using tests.
 3. Python version is exactly `3.15.2`. This matches the local interpreter version recorded by the manager for the standard-library-only gate. The manager's evidence lists Linux x64 builds for Ubuntu 22.04, 24.04 and 26.04, and identifies ubuntu-latest as Ubuntu 24.04. This supports the selected CI runner and version; it is not a claim that this workflow has run or that every Python version is supported. Do not silently substitute another version.
 4. Pin checkout as `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1`, with the full-line YAML comment `# actions/checkout v7.0.1` immediately before its uses property. Pin Python setup as `actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0`, with the full-line YAML comment `# actions/setup-python v7.1.0` immediately before its uses property. Use the SHA, never the mutable version tag, as the action reference.
-5. Use JSON flow syntax for the workflow data in the `.yml` file, with only those two full-line YAML comments added. No inline comments. Tests discard only lines whose stripped text starts with `#`, then parse the remaining JSON with the standard library. They also inspect the raw lines for the two required adjacent version comments. This is a fixed-format workflow contract, not a general YAML parser. Tests read this declared workflow file only, then copy inputs to a TemporaryDirectory; they do not change it. No YAML dependency or private validation helper. Tests check the public workflow fields and execute the declared gate command in synthetic temporary projects. The success project has one passing unittest; the failure project has one failing unittest. Neither starts workers or uses the network.
-6. The root data has name `check`, on `{'pull_request': {}}`, permissions `{'contents': 'read'}`, and exactly one jobs member, `check`, with runs-on `ubuntu-latest`. Its steps are exactly three objects: the pinned checkout with its with mapping equal to `{'persist-credentials': false}` and no ref override; the pinned Python setup with its with mapping equal to `{'python-version': '3.15.2'}`; then run equal to the parent gate and shell `bash`. The single-quoted mappings here describe JSON values; the workflow uses valid JSON quoting. No defaults or working-directory override. No additional job or step. The normal checkout action PR revision is used; the manager checks the resulting CI run before merging. All T3 code and workflow changes need CI on their PR. Only documentation-only PRs have the temporary no-CI exception in CLAUDE.md.
+5. Use pretty-printed JSON flow syntax in the .yml file, indented by two spaces, with every property on its own line and no compact single-line objects. Add only the two full-line YAML comments. In each action step, the opening brace is on the preceding line, then the version comment on its own line inside that object, then the uses property on its own line immediately below the comment. No inline comments. Tests discard only lines whose stripped text starts with `#`, then parse the remaining JSON with the standard library. They also inspect the raw lines for the two required adjacent version comments. This is a fixed-format workflow contract, not a general YAML parser. Tests read this declared workflow file only, then copy inputs to a TemporaryDirectory; they do not change it. No YAML dependency or private validation helper. Tests check the public workflow fields and execute the declared gate command in synthetic temporary projects. The success project has one passing unittest; the failure project has one failing unittest. Neither starts workers or uses the network.
+6. The root data has name `check`, on `{'pull_request': {}}`, permissions `{'contents': 'read'}`, and exactly one jobs member, `check`, with runs-on `ubuntu-latest`. Its steps are exactly three objects: the pinned checkout with its with mapping equal to `{'persist-credentials': false}` and no ref override; the pinned Python setup with its with mapping equal to `{'python-version': '3.15.2'}`; then run equal to the parent gate and shell `bash`. The single-quoted mappings here describe JSON values; the workflow uses valid JSON quoting. No defaults or working-directory override. No additional job or step. Keep the normal pull_request merge-result checkout, not an explicit PR-head checkout. GitHub reports that run against the PR head commit, as the live CLAUDE.md now states. The manager checks the check reported for that head while it tests the merge with main. No ref override is added. All T3 code and workflow changes need CI on their PR. Only documentation-only PRs have the temporary no-CI exception in CLAUDE.md.
 
 ### Tests
 
@@ -512,6 +502,7 @@ Each row is one test function in `bin/test_ci_workflow.py`.
 | `test_ci_checkout_is_pinned` | First step uses exactly actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1, not a tag. |
 | `test_ci_checkout_version_comment` | The raw line immediately before checkout's uses property is exactly the full-line comment # actions/checkout v7.0.1, after stripping indentation. |
 | `test_ci_checks_out_without_persisting_credentials` | Checkout's persist-credentials is false. |
+| `test_ci_keeps_default_merge_checkout` | Checkout has no ref input; no alternate checkout step or head-SHA override is configured. |
 | `test_ci_python_setup_is_pinned` | Second step uses exactly actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0, not a tag. |
 | `test_ci_python_setup_version_comment` | The raw line immediately before setup's uses property is exactly # actions/setup-python v7.1.0, after stripping indentation. |
 | `test_ci_uses_the_selected_python` | Setup's python-version is exactly the string 3.15.2. |
@@ -534,4 +525,114 @@ Must fail without: parent gate step → `test_ci_runs_the_parent_gate`.
 
 For these configuration guard checks, remove the named field or step from a saved workflow copy, run its named test, then restore and cmp the original. The test must fail on the missing public configuration, not on a JSON parse error or a missing fixture. The tests for forbidden events, conditions and failure masking also assert that those fields are absent; do not describe adding such a forbidden field as removal of an existing code guard.
 
-Done: the parent gate exits 0 in the worker worktree, each named guard check fails for its stated reason when removed, and the manager observes this workflow's CI result on T3's own PR head before merging. The lead cannot verify GitHub Actions locally. Completion is the implementation commit's ancestry in origin/main after the manager's fetch. No direct main commit or local main merge.
+Done: the parent gate exits 0 in the worker worktree, each named guard check fails for its stated reason when removed, and the manager observes this workflow's check reported for T3's PR head, running the merge result with main, before merging. The lead cannot verify GitHub Actions locally. Completion is the implementation commit's ancestry in origin/main after the manager's fetch. No direct main commit or local main merge.
+
+## T4. Prepare cargo worktrees before starting a worker
+
+Status: open
+
+Needs: T2 merged into origin/main.
+
+Spec: this card, the common project rules, and T1's repository/gate/cargo_env/fixture rules in bin/TASKS.md; AGENTS.md; `/data/softwares/skk/CLAUDE.md`, Card flow and GitHub; `/data/softwares/kstack/skills/card-flow/SKILL.md`, Project adapter and Review the diff.
+
+Files: `bin/dispatch.py`, `bin/test_dispatch.py`, `bin/TASKS.md`.
+
+The worker does not edit bin/TASKS.md. This is the cargo-preparation part split from the former T1. Do not implement cleanup, change review routing, or change summary/failure classification.
+
+### Rules
+
+1. Replace T1's temporary cargo-workflow refusal with the preflight and prime below. Add module constant `PRIME = ['cargo', 'test', '--locked', '--no-run', '--all-targets']`. Use T1's cargo_env and worktree/set helpers. No dependency fetch or network call is added.
+2. Before priming any repo, preflight every set member with a Cargo.toml file, in repo_set order. Its committed HEAD:.gitignore must contain a complete line /target or /target/, and `git check-ignore --quiet -- target/` in that worktree must exit 0. An inherited global ignore alone is insufficient. Otherwise raise DispatchError `<repo>: target/ must be ignored by committed .gitignore; ask that repository's lead to commit /target before dispatch`. Cargo child leads own that change, not this worker. Test fixtures may create/commit synthetic .gitignore files in their temporary repos. No production .gitignore is changed.
+3. Card creates all worktrees, then runs that complete preflight, then primes each manifest-bearing repo in set order, before printing worktree/narrow/full paths or starting the worker. On preflight failure discard only this invocation's worktrees and branches and start no prime or worker. On a prime failure discard them too. Do not reuse another card's existing worktree or branch.
+4. A prime is subprocess.run(PRIME, cwd=the repository worktree, env=cargo_env(that tree), stdout=PIPE, stderr=STDOUT, text=True, errors='replace'). It runs outside the worker sandbox only on the fresh, unmodified checkout, including when --no-worker was requested. Print `prime <repo> exit <code>` for every attempted prime, including the failing one. Stop at the first failure; no later prime runs.
+5. A failed prime raises DispatchError `<repo>: cargo test --locked --no-run --all-targets failed in the worktree (exit <code>); run cargo fetch and make check in <path>, then dispatch again. Last lines:\n<tail>`. The absolute main checkout path uses repo_dir. Tail is the last 20 lines, or (no output) when empty. The command name in this error stays the literal cargo command even when tests replace PRIME. This message addresses the child lead who owns dependencies; it does not permit the implementer to run cargo fetch.
+6. External review also applies rule 2 before its gate to all manifest-bearing set members in its selected worktree/main checkouts. Review never primes. An ignore-preflight failure starts no gate or reviewer and does not delete those existing checkouts. The gate which review runs is still T1's specified gate.
+7. Prime output is not exempt from off-list, untracked-file or clean-status checks. Correct Git ignores keep target/ out of all three. If that prerequisite is absent, fail rather than hide target/ or blame a later worker for prime output. Status commands continue to use GIT_OPTIONAL_LOCKS=0.
+8. Delete test_card_refuses_cargo_until_T4 and test_review_refuses_cargo_until_T4. In the module docstring replace T1's two cargo-unavailable lines with exactly: `Before any worker starts, cargo repositories are primed with` then on the next line `` `cargo test --locked --no-run --all-targets`. Cargo runs offline and its target`` then `directory is inside each worktree. --no-worker still performs this prime.` Do not change other prose or messages.
+
+### Tests
+
+Each is a CLI test. A cargo fixture commits Cargo.toml and .gitignore with /target unless its row explicitly tests the absent/ineffective ignore. Fake prime scripts and their records stay in the TemporaryDirectory; no real cargo or worker starts.
+
+| Test | Setup and observable assertions |
+|---|---|
+| `test_card_uses_locked_prime` | Fake cargo on PATH, PRIME not replaced; cargo arguments are test, --locked, --no-run, --all-targets. |
+| `test_card_primes_cargo` | Only eval has a manifest; PRIME records cwd and env; record is exactly {wt}/eval with offline=true and target={wt}/eval/target; one prime eval exit 0; worker sees the record before it runs. |
+| `test_card_primes_with_no_worker` | Same fixture, --no-worker; one prime, no worker. |
+| `test_card_does_not_prime_without_a_manifest` | Default T1 fixture; no prime even though a fake executable is supplied. |
+| `test_card_refuses_unignored_target` | Manifest but no committed target ignore; exact rule 2 error, no prime/worker, newly created worktrees and branches discarded. |
+| `test_card_preflights_all_target_ignores` | eval and server manifests; only server lacks ignore; no prime in either repo and no worker. |
+| `test_review_refuses_unignored_target` | Existing review worktree has manifest but HEAD lacks target ignore; exact rule 2 error before gate/worker; existing worktrees preserved. |
+| `test_global_ignore_is_not_a_committed_target_ignore` | A temporary GIT_CONFIG_GLOBAL file and temporary excludes file make Git ignore target, but HEAD:.gitignore has no target line; card still refuses under rule 2. Never edit or inspect the user's global Git config. |
+| `test_ignored_prime_output_is_not_reported_as_worker_change` | Fake prime creates target/debug/build-marker under committed ignore; worker makes only allowed impl.go change; no target path in outside-Files output. Review's untracked list also contains no target path. |
+| `test_card_stops_when_the_prime_fails` | Prime prints prime-marker and exits 4; CLI exits 2 with exact rule 5 error and marker; no worker, worktrees or card branches. |
+| `test_prime_failure_stops_later_primes` | eval and server manifests; eval prime exits 4; no server prime record. |
+| `test_failed_prime_tail_is_twenty_lines` | Prime emits 25 numbered lines and exits 4; tail contains only lines 6 through 25. |
+| `test_failed_prime_without_output` | Silent prime exits 4; error ends Last lines followed by (no output) and newline. |
+
+Must fail without: committed target-ignore prerequisite → `test_card_refuses_unignored_target`, `test_global_ignore_is_not_a_committed_target_ignore`.
+Must fail without: complete ignore preflight → `test_card_preflights_all_target_ignores`.
+Must fail without: review target-ignore prerequisite → `test_review_refuses_unignored_target`.
+Must fail without: failed-prime stop → `test_card_stops_when_the_prime_fails`, `test_prime_failure_stops_later_primes`.
+
+Done: parent gate exits 0, the lead checks the guards and obtains required reviews, then the manager merges the PR. Complete only after the implementation commit is an ancestor of manager-maintained origin/main. No worker commits, fetches, pulls or pushes.
+
+## T5. Clean up only card worktrees already merged by the manager
+
+Status: open
+
+Needs: T4 merged into origin/main.
+
+Spec: this card; common project rules and T1 rules 3, 8, 17, 19 and its fixtures in bin/TASKS.md; AGENTS.md; `/data/softwares/skk/CLAUDE.md`, Card flow and GitHub; `/data/softwares/kstack/skills/card-flow/SKILL.md`, Project adapter and Review the diff.
+
+Files: `bin/dispatch.py`, `bin/test_dispatch.py`, `bin/TASKS.md`.
+
+The worker does not edit bin/TASKS.md. This is the cleanup part split from former T1. It never merges, fast-forwards, resets or rebases a branch, never fetches/pulls/pushes, and never marks a card done. Do not restore the old aistore land or rollback path.
+
+### Rules
+
+1. Replace T1's land refusal. The lead invokes land only after manager confirmation that the PR is merged and origin/main is refreshed. Require the worktree root and T1 rule 8's exact repository-set check, with the same missing/unexpected messages. Validate every expected repo in name order before deleting anything. A failed preflight leaves all registrations and branch refs intact.
+2. Each worktree must be on card/<ID> and clean. Require its branch tip, refs/remotes/origin/main, main checkout on main, local main equal to origin/main, and the card tip an ancestor of origin/main. A dependency-only repo whose tip is already included needs no new PR. Git status always uses GIT_OPTIONAL_LOCKS=0. No untracked or dirty target exclusion is introduced; T4's committed-ignore prerequisite supplies the ordinary Git ignore.
+3. The exact DispatchError messages are: off-card branch `<repo>: the worktree is not on card/<ID>; check out card/<ID> and commit there`; dirty tree `<repo>: worktree has uncommitted changes; commit or discard them first`; missing remote snapshot `<repo>: origin/main is missing; ask skk-manager to fetch`; off-main checkout T1's existing error; unsynchronized local main `<repo>: main differs from origin/main; ask skk-manager to synchronize it`; unmerged tip `<repo>: card/<ID> is not merged into origin/main; ask skk-manager to merge its pull request and fetch`. Missing root is T1's `no worktree <path>` error. Do not claim that a snapshot is fresh merely because an ancestry check passed.
+4. After all preflights, remove each worktree without --force and delete only refs/heads/card/<ID> using git update-ref -d with the preflight tip as the expected old value. Stop at a failed Git command with T1's usual `git <arguments joined with spaces>: <stripped stderr>` DispatchError, exit 2. Print `cleaned <repo> <tip>` after each repository's successful cleanup. Main/origin refs are never changed. A racing branch update must survive the expected-tip delete check.
+5. Procedure note for the lead only, not dispatcher output: earlier successful cleanup is not rolled back after a later error. Inspect a partial cleanup and finish it manually. A repeated land must reject missing worktrees under rule 1, not silently skip them. The code prints only the failure specified in rule 4; it does not print or append this procedure note.
+6. Remove the empty root with Path.rmdir, not recursive deletion. ENOTEMPTY or EEXIST yields DispatchError `worktree <path> is not empty after cleanup; remove its remaining files by hand`. Any other OSError yields `worktree <path> could not be removed: <str(error)>`. Both exit 2 through the normal CLI handler, no traceback. Unknown remaining files are never deleted.
+7. Replace test_land_is_unavailable_until_T5 with the tests below. Land help becomes `verify merged card tips and remove the worktrees`. Replace the module docstring line saying land is unavailable with exactly: `land verifies card tips against the manager-refreshed origin/main snapshot` then `and removes only merged card worktrees and branches. It cannot prove freshness.` Other routes, gates, worker handling and messages are unchanged.
+
+### Tests
+
+Use only temporary synthetic Git repos. Fixture setup may create a merge commit on a temporary manager branch and set refs/remotes/origin/main with update-ref, then synchronize its synthetic main checkout. This simulates the result of manager refresh without git fetch, pull, push or network access. Record refs and worktree registrations before each refused cleanup. A fake Git executable may inject a failure or late update at the external process boundary; it delegates all other operations to real Git. No dispatcher private helper is mocked.
+
+| Test | Setup and observable assertions |
+|---|---|
+| `test_land_after_a_merge_commit` | E1 tip included in a synthetic manager merge commit; all mains synchronized; land exits 0, removes set worktrees/branches/root, prints cleaned tips and changes no main/origin ref. |
+| `test_land_in_the_parent` | Same scenario for T1 parent with bin/new.py committed; root, not root/skk, supplies Git state; successful cleanup, main/origin unchanged. |
+| `test_land_refuses_an_unmerged_tip` | Origin/main lacks eval card tip; exact unmerged error, no cleanup anywhere. |
+| `test_land_refuses_missing_origin_main` | Otherwise eligible fixture, eval origin/main missing; exact missing-snapshot error, no cleanup. |
+| `test_land_refuses_unsynchronized_main` | Eligible remote snapshot but local main remains older; exact sync error, no cleanup. |
+| `test_land_refuses_main_checkout_off_main` | Otherwise eligible fixture, one main checkout on another branch; exact off-main error, no cleanup. |
+| `test_land_refuses_a_dirty_worktree` | Otherwise eligible fixture, rag dirty.txt; exact dirty error, all refs/registrations preserved. |
+| `test_land_stops_on_a_detached_worktree` | Otherwise eligible fixture, rag detached; exact branch error, no cleanup. |
+| `test_land_needs_a_worktree` | Root absent; exact missing-root error, exit 2. |
+| `test_land_refuses_a_missing_repository_worktree` | Remove rag's registered worktree but keep branch; exact T1 rule 8 missing-set error, other worktrees/refs untouched. |
+| `test_land_refuses_an_unexpected_repository_worktree` | Add web to E1 root; exact T1 rule 8 unexpected-set error, no cleanup. |
+| `test_land_preflights_all_repositories` | Earlier adopt eligible, later eval unmerged; adopt also remains intact. |
+| `test_land_keeps_main_checkout_changes` | Eligible cleanup with staged SPEC edit and ignored file in a synthetic main; both contents, staged diff and main ref unchanged. |
+| `test_land_keeps_a_branch_that_gained_commits` | Fake Git updates learn branch between worktree removal and expected-tip deletion; exit 2, late tip preserved and main unchanged. |
+| `test_land_reports_partial_cleanup_without_rollback` | Fake Git fails removal of a later repo after earlier cleanup; exit 2 with rule 4 error; earlier cleanup remains, no rollback, all main refs unchanged. |
+| `test_land_reports_root_removal_io_error` | Path.rmdir raises PermissionError('synthetic-rmdir-denial'); exact rule 6 error, exit 2, no traceback. |
+| `test_land_keeps_unknown_files_under_its_root` | Extra keep.txt; worktrees clean up, root removal refuses with rule 6 message; keep.txt unchanged. |
+| `test_land_accepts_ignored_cargo_prime_output` | Manifest-bearing fixture has committed /target and synthetic target/debug marker; eligible merged card cleans up normally because Git ignores that output. No special target exclusion in land. |
+
+Must fail without: repository-set completeness check → `test_land_refuses_a_missing_repository_worktree`.
+Must fail without: unexpected repository rejection → `test_land_refuses_an_unexpected_repository_worktree`.
+Must fail without: merged-tip ancestry check → `test_land_refuses_an_unmerged_tip`.
+Must fail without: remote-snapshot existence check → `test_land_refuses_missing_origin_main`.
+Must fail without: local-main synchronization check → `test_land_refuses_unsynchronized_main`.
+Must fail without: worktree cleanliness check → `test_land_refuses_a_dirty_worktree`.
+Must fail without: worktree branch check → `test_land_stops_on_a_detached_worktree`.
+Must fail without: complete preflight before deletion → `test_land_preflights_all_repositories`.
+Must fail without: expected-tip branch deletion → `test_land_keeps_a_branch_that_gained_commits`.
+Must fail without: nonrecursive root removal → `test_land_keeps_unknown_files_under_its_root`.
+
+Done: parent gate exits 0, guard checks fail for the removed guard, required reviews finish, and the manager merges the PR. Completion needs implementation-commit ancestry in manager-maintained origin/main, not merely local cleanup success. The lead never fetches, pulls or pushes.
