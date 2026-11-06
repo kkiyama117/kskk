@@ -40,7 +40,7 @@ Leads follow the kstack `card-flow` skill: `/data/softwares/kstack/skills/card-f
 Routes:
 
 - Worker and ambiguity review: `dsh ollama-cloud deepseek-v4.1-flash high`.
-- Second review: `dsh google gemini-3.1-pro-preview high`, read-only, a model family different from both the leads (OpenAI) and the workers (DeepSeek). The lead asks `skk-manager` to run it. Until the first heavy diff (a contract, the split between public and private data, a migration, or security) has been reviewed by both Gemini and `skk-manager`, `skk-manager` reviews it too, and `local/agents/metrics.md` records the real defects and misses of each.
+- Second review: `dsh google gemini-3.1-pro-preview high`, read-only, a model family different from both the leads (OpenAI) and the workers (DeepSeek). The lead asks `skk-manager` to run it. `skk-manager` also reviews every heavy diff (a contract, the split between public and private data, a migration, or security), because in the first comparisons the two found different defects. `local/agents/metrics.md` records the real defects, errors, and misses of each.
 - Read-only roles (ambiguity, review, research) start with `run-worker.sh --read-only`.
 
 ### Card flow adapter
@@ -81,6 +81,8 @@ Merge criteria. A pull request merges only when all of these hold:
 - The tests fail when the behavior breaks: every `Must fail without` line was checked by removing the guard, and the result is in the pull request.
 - A diff that touches a contract, the split between public and private data, a migration, or security has its second review.
 
+Until a repository has CI (issue https://github.com/kkiyama117/skk/issues/4), a pull request that changes documentation only (no code, no workflow, no test data) merges after its reviews. A pull request with code waits for CI.
+
 ## Issues
 
 Issues are GitHub issues on https://github.com/kkiyama117/skk, with the labels `cause:harness`, `cause:skills`, `cause:project`, `cause:memory`, `cause:one-off`, and `needs-human`. Questions for the owner are issues labeled `needs-human`. Issues about kstack skills or `run-worker.sh` go to `kkiyama117/kstack`; tell `kstack-manager`. Issues about DSH go to `kkiyama117/deepseek-harness-plugins`; tell `dsh-manager` (herdr `default` session) the issue number. Leads report issues to `skk-manager`, which files them.
@@ -88,7 +90,7 @@ Issues are GitHub issues on https://github.com/kkiyama117/skk, with the labels `
 ## Never
 
 - Read, list, or copy anything under `/data/references/`, or print credentials.
-- Read, print, or pass to any model the contents of the owner's real dictionaries: `~/.local/share/fcitx5/skk/user.dict`, `~/.skkeleton`, `~/.skk-jisyo`, and any CorvusSKK `userdict.txt`. A tool may read copies of them only after the owner approves (PLAN question 6), and then it reports counts only.
+- Read, print, or pass to any model the contents of the owner's real dictionaries: `~/.local/share/fcitx5/skk/user.dict`, `~/.skkeleton`, `~/.skk-jisyo`, and any CorvusSKK `userdict.txt`. A tool may read copies of them, as the owner approved on 2026-11-06 ("6: ok. as you do."), and then it reports counts only.
 - Write to the owner's IME files or settings (fcitx5, IBus, skkeleton, CorvusSKK, Vim or Neovim config) without the owner's approval.
 - Create a remote, push, or publish anything without the owner's approval.
 - Mark an ADR Accepted unless the owner decided it in their own words.
