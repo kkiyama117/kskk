@@ -1,7 +1,8 @@
-# ADR-0007: Neovim は LuaJIT FFI でエンジンを直接呼び、Vim は別プロセスのエンジンと JSON のチャンネルで話す
+# ADR-0007: VimとNeovimはrelay経由の共通protocolを先に測り、FFIを逃げ道にする
 
 - Status: Proposed
 - Date: 2026-11-06
+- Updated: 2026-11-12
 - Deciders: kiyama
 - Level: L3
 - Phase: 6
@@ -9,62 +10,73 @@
 
 ## Context
 
-ユーザーは Vim と Neovim で skkeleton を使っている。この機には Vim 9.2 と Neovim 0.13 の両方が入っている。skkeleton は denops の上で動き、denops は Deno の上で動く。Deno は 2027年10月ごろに開発を終える (`docs/research/README.md`)。そのため、2027年10月より前に置き換える。
+ユーザーはskkeletonを置き換え、エディタでも他の機械と同じエンジンを使いたい。Denoの保守期限が計画上の制約である。出典は `docs/research/README.md` とPLANのGoal。VimとNeovimの両方を対象にするのはPLANの問い5にあるmanagerの判断で、所有者の新しい決定としては扱わない。
 
-エディタからエンジン (ADR-0004、C ABI を持つ) を呼ぶ方法は次のとおりである (`docs/research/editor.md`)。
+旧案はNeovimをLuaJIT FFI、Vimをjobに分けていた。しかしADR-0009の通常配置は、同じ機械・利用者のログを単独で書くエンジンホストである。エディタごとにエンジンとDictを組み込むことを既定にすると、この所有者が分かれる。
 
-- Neovim は LuaJIT を持ち、`ffi` で C の関数を直接呼べる。`sqlite.lua` が前例である。
-- Vim には FFI がない。`job_start` と `ch_sendexpr` で別のプロセスと JSON で話せる。vim-lsp が前例である。
-- Vim の `libcall()` は、文字列1つを渡して文字列1つを受け取るだけである。呼ぶたびにライブラリを開いて閉じるので、状態を保てない (推測、Vim のソースで確かめる)。
-- どの方法も、1キーあたりの遅延を測った資料は見つかっていない。
+`local/agents/planner/20261112-diff-for-manager.md` のD6とmanagerの指示に従い、同じrelay経路を先に測る。Vimの公式channel文書は [同期JSON要求とjob](https://vimhelp.org/channel.txt.html#channel-use) を説明しているが、十分速いことは証明していない。今回、遅延は計測していない。
 
 ## Decision
 
-- **Neovim**: LuaJIT FFI で、エンジンの共有ライブラリ (C ABI) を直接呼ぶ。プロセスの境界がなく、キーごとの往復が関数呼び出し1回で済む。
-- **Vim**: エンジンを1つのプロセスとして `job_start` で起こし、`json` モードのチャンネルで1キーずつ同期で問い合わせる。このプロセスは、エンジンを C ABI で呼ぶ薄い殻であり、1行1つの JSON を読み書きする。
-- 両方のエディタで、キーの割り当て、preedit の表示 (extmark や text property)、候補の表示は、同じ考え方で作る。エディタ側に変換の規則を持たない。
-- conformance の検査項目 (ADR-0003) を、エディタを通して流せるようにする。アダプタは、エディタを headless で起こし、キーを送って buffer と preedit を読む。
+- VimもNeovimも、jobとして仮称 `kskk connect` を起動する。relayは既存daemonへの接続、必要時の起動調整、hello、枠形式の変換を受け持つ。relay自体はDictやログの書き手にならない。
+- Vim側のJSON channelと、Neovim側のmsgpack-RPCの違いはrelayで吸収する。運ぶ要求とReplyの意味はADR-0009の共通protocolとする。
+- pluginは共通のVim scriptを基本とし、channelと候補窓などのエディタ依存部分だけを分ける。変換規則と学習をpluginへ移さない。
+- frontendはキー、Textと意味コマンド、open/close/reset/flushを送る。返事のcommitを適用し、全体Viewを描く。前回のpreeditは表示を直すために保持してよい。
+- このrelay経路を先に計測する。旧ADRのp99が10 ms以下という採否基準は維持する。これは推定: 製品上の判定基準であり、今回の計測値ではない。
+- Neovimのrelay経路が基準を満たさない場合、同じbyte列のkskk_callをLuaJIT FFIで呼ぶ経路を比較する。まずconnect実装で単独hostを保てるか調べる。embeddedへ切り替える場合はADR-0009のV3に対する逃げ道として、file lockとtail追従も必要になる。FFIというだけで保存の排他を免除しない。
+
+```mermaid
+flowchart LR
+  V[Vim plugin] -->|JSON channel| RV[relay]
+  N[Neovim plugin] -->|msgpack RPC| RN[relay]
+  RV -->|共通JSONの要求とReply| H[単独エンジンホスト]
+  RN -->|共通JSONの要求とReply| H
+  N -. 基準不達時だけ同じkskk_call .-> F[FFI client]
+  F -. connectでhostを共有 .-> H
+```
 
 ## 決め方
 
-実験とデータで決まる。ユーザーには聞かない。Vim と Neovim のどちらを使うかも聞かない。両方が入っていて、両方とも作る費用は小さい (エンジンを呼ぶ部分以外は共通)。
+速度と正しさは実験で決める。relayの利便性を理由に旧基準を緩めず、FFIの速さも推測だけで合格にしない。
 
-実験の手順 (`vim` リポジトリの最初のカードで行う):
+Vim系の最初のカードで、次の順に検査する。
 
-1. エンジンの代わりに、決まった時間で返す小さな偽のエンジンを作り、3つの道で呼ぶ: Neovim の FFI、Neovim の job と JSON、Vim の job と JSON。
-2. 各道で、conformance の 81 項目のキー列を、1キーごとに時刻を記録しながら流す。キーの間隔は 100 ms (普通の速さ) と 20 ms (速い連打) の2通り。
-3. 1キーあたりの遅延 (キーを受けてから画面が更新されるまで) の中央値と 99 パーセンタイルを出す。
+1. 返事を固定できる偽のhostとrelayを用意し、VimとNeovimのjob経路を先に測る。次に実エンジン、ローカル辞書、学習の保存も含めて同じ経路を測る。偽のhostの測定だけで出荷経路を合格にしない。
+2. conformanceの全対象キー列を流す。旧案の間隔100 msと20 msを保つ。両方とも推定: 通常入力と連打を比較する測定入力条件であり、所有者の打鍵速度を計測した値ではない。
+3. キー受信から画面更新を確認できるまでの中央値とp99を出す。要求の待ち行列、relay、IPC、core、Learnのローカル保存、返事と描画を範囲に含める。通信RTTだけを画面遅延の代わりにしない。
+4. 実画面の更新まで計れない試験では、描画API適用までなど終点を明記し、画面遅延を検証済みとしない。起動時とwarmな定常時、学習を伴うキーと伴わないキー、別sessionの負荷を分けて報告する。
+5. 同じ機械、OS、build条件、ソースrevision、設定、辞書、キー列、間隔で比較し、試行数と生ログを残す。遅いキーや失敗試行を除いて集計しない。
+6. relayが基準を満たさない場合だけNeovim FFIを同じ条件で測り、変更の効果を比較する。Vim側の不達も未解決のまま合格扱いせず、relayとhostの境界を見直す。
 
-判定の基準:
+合格条件:
 
-- 99 パーセンタイルが 10 ms 以下なら、その道は使える。
-- 20 ms 間隔の連打で、キーが1つも失われず、順番も入れ替わらない。
-- Neovim の job と JSON も基準を満たすなら、Neovim も job と JSON に揃えることを考える (コードが1つになる)。そのときは、FFI と比べた利点 (エンジンが落ちてもエディタが落ちない) と欠点 (プロセスの管理) を書いて、この ADR を改める。
-- conformance の項目が、エディタを通しても、エンジンを直接呼んだときと同じ数だけ合格する。
+- キー受信から画面更新までのp99が10 ms以下。推定: 旧ADRから維持する採否基準。
+- 20 ms間隔の条件でも、キーの欠落、順序逆転、確定文字列の重複適用がない。推定: 試験条件。
+- エディタ経由のconformance観測が、同じエンジンをembedded hostで直接駆動した観測と一致する。
+- 切断と期限切れを検査し、遅れたReplyを新しいsessionへ適用しない。再接続やflush/resetが学習の単独書き手を破らない。
 
 ## Options Considered
 
-| 案 | 複雑さ | 費用 | 運用の手間 | 要点 |
-|---|---|---|---|---|
-| A. Neovim は FFI、Vim は job と JSON (推奨) | 中 | 中 | 中 | 各エディタで一番速い道。2つの呼び方を保守する |
-| B. 両方とも job と JSON | 低 | 低 | 中 | コードが1つ。プロセスの起動と管理が要る。エンジンが落ちてもエディタは落ちない |
-| C. 両方とも Vim script や Lua で変換を書き直す (skkelua.nvim、vim9skkp の流儀) | 高 | 高 | 高 | エンジンが2つになり、「同じエンジン」にならない |
-| D. skkeleton を Deno 以外 (Node や Bun) で動かす | 中 | 中 | 高 | 今の挙動を保てる。ただし TypeScript のエンジンが残り、他の機械と同じエンジンにならない |
-| E. Vim は `libcall()` | 中 | 低 | 高 | プロセスが要らない。ただし文字列1つの受け渡しで、状態を保つのにライブラリ側の工夫が要る |
+| 案 | 費用と変更 | 選択 |
+|---|---|---|
+| VimとNeovimをrelayへ揃える | 推定: 共通pluginとhostを保てる。relayの起動、枠変換、IPCの費用がある | 先に測る通常案 |
+| NeovimだけFFIでkskk_callを呼ぶ | 推定: relayを省けるが、エディタ固有のbindingとライブラリ配布が増える。embeddedならログ排他も増える | 基準不達時の比較対象 |
+| plugin側で変換規則を書き直す | 推定: 別エンジンが増え、同じ挙動と学習を保つ検査が増える | 採らない |
+| Deno以外のruntimeへskkeletonを移す | 推定: 一時移行の案にはなるが、共通エンジンへの統合を終えたことにはならない | 通常案にはしない |
 
 ## Trade-off Analysis
 
-目的は「どの機械でも同じエンジン」なので、C と D は外れる。A と B の違いは速さと単純さである。遅延の資料がないので、測って決める。測る前の推奨を A にした理由は、FFI はキーごとにプロセス間の往復がなく、遅延が問題になることがほぼないからである。B に揃えられるかどうかは、測定の結果で決める。
+relayを先に選ぶ理由は、保存の所有者を分けずにエディタ差を小さなglueへ閉じ込めるためである。プロセス境界が増える不利は実測で判断する。FFIは捨てずに比較対象として残すが、速さのためにログの安全性を落とさない。
 
 ## Consequences
 
-- 楽になること: Deno と denops がいらなくなる。Neovim、Vim、fcitx5、Windows、Android で同じエンジンを使える。
-- 難しくなること: エンジンの共有ライブラリを、各機械に置く必要がある (Neovim)。エンジンのプロセスを配る必要がある (Vim)。
-- 見直す条件: 測定で A の FFI が基準を満たさなかったとき。Neovim が LuaJIT を外したとき。2027年10月までに間に合わない見込みになったとき (そのときは D を一時の逃げ道にする)。
+- Neovimだけに型付きC構造体のbindingを配る既定案は取り下げる。C ABIを使う場合もADR-0009のbyte列の契約を使う。
+- PLANとoverviewに残るNeovim FFI既定の表はmanagerの次の更新対象である。本変更ではそのファイルを編集しない。
+- V3はまだ未計測。代替経路の性能も検証済みではない。
 
 ## Action Items
 
-1. [ ] エンジン (手順5) の C ABI が決まったら、偽のエンジンで遅延を測る
-2. [ ] Neovim の frontend、Vim の frontend を作る
-3. [ ] エディタを通した conformance のアダプタを作る
-4. [ ] 2027年10月より前に、ユーザーが skkeleton の代わりに使い始める
+1. [ ] relayと偽のhostの計測カードを作り、終点、負荷条件、生ログを固定する
+2. [ ] VimとNeovimのrelayを測り、実エンジンと保存を含めて旧基準を判定する
+3. [ ] 不達の場合だけNeovim FFIと必要なembedded排他を比較する
+4. [ ] エディタ経由のconformanceと、切断・再接続の試験を用意する
