@@ -35,13 +35,13 @@ Deno の開発が2027年10月ごろに終わるので、その上で動く skkel
 
 | フロントエンド | リポジトリ | エンジンの呼び方 | 状態 |
 |---|---|---|---|
-| Windows | `windows` | TSF の DLL としてプロセス内で動く | 予定 |
-| Linux | `fcitx5` | fcitx5 のアドオンとして動く | 予定 |
-| Neovim | `vim` | LuaJIT の FFI でエンジンの共有ライブラリを直接呼ぶ | 予定 |
-| Vim | `vim` | `job_start` と JSON のチャンネルで別プロセスを呼ぶ | 予定 |
-| Android | `android` | JNI 越しに呼ぶ | 予定 |
+| Windows | `windows` | TSF の TIP が、named pipe でエンジンホスト (`kskkd`) に要求を送る | 予定 |
+| Linux | `fcitx5` | fcitx5 のアドオンが、Unix socket でエンジンホストに要求を送る | 予定 |
+| Neovim | `vim` | job の relay (`kskk connect`) を通してエンジンホストに要求を送る。LuaJIT の FFI は予備 | 予定 |
+| Vim | `vim` | job の relay と JSON のチャンネルで、エンジンホストに要求を送る | 予定 |
+| Android | `android` | IME のプロセスに埋め込んだエンジンホストを JNI 越しに呼ぶ | 予定 |
 
-`core` は C ABI を1つ出す予定です。Neovim の FFI と Android の JNI はこの C ABI を呼びます。Neovim はプロセスを分けず、Vim は別プロセスを立てます。同じ C ABI と JSON を使って、`conformance` のアダプタもエンジンを呼びます。ADR-0009 は、このアダプタを6つ目のフロントエンドと数えます。
+2026-11-12 の見直し (ADR-0009、PR #15) で、エンジンは利用者ごと、機械ごとに1つのエンジンホストで動かすことにしました。エンジンホストは、その機械の学習の記録を書く唯一のプロセスです。フロントエンドは、1つの要求と返事の決まりでエンジンホストと話します。C ABI は byte の列を運ぶ `kskk_call` です。詳しい図は `docs/design/design-set.md` にあります。下の層の表の「殻」は、今の ADR-0009 ではフロントエンドとエンジンホストの2つに分かれています。
 
 ## エンジンの中心は純粋な状態遷移で、層は実装が2つ以上ある境目だけに置く
 

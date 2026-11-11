@@ -17,8 +17,8 @@ One Rust engine used by every frontend, thin frontends, and a user-dictionary st
 |---|---|---|---|
 | `jisyo` | Rust crate and CLI. Reads and writes SKK-JISYO text in EUC-JP, EUC-JIS-2004, UTF-8, and UTF-16LE with BOM, with okuri blocks, annotations, and `(concat ...)` escapes. Holds the user-dictionary store: one append-only log per machine, a merge that gives the same result in any order, and import from and export to the user dictionaries of CorvusSKK, fcitx5-skk, ibus-skk, and skkeleton. | `skk-jisyo` | `J` |
 | `conformance` | Behavior cases (keys and dictionaries in, expected preedit, commit, and mode out) and a runner that drives an engine through a small adapter. The cases define "the same behavior". The first adapters drive engines that already exist, so the cases are checked before our engine exists. | `skk-design` | `C` |
-| `core` | The engine, with a C ABI. Built or adopted after the engine ADR. | not started | `K` |
-| `vim` | Neovim frontend over LuaJIT FFI and Vim frontend over a job with a JSON channel. Ready before October 2027. | not started | `V` |
+| `core` | The pure engine and the engine host (ADR-0009): one host per user per machine (`kskkd` over a Unix socket or named pipe on Linux and Windows, embedded in the IME on Android) is the only writer of the machine's log. Frontends speak one request and reply protocol; the C ABI carries bytes (`kskk_call`). Built or adopted after the engine ADR (ADR-0004). | not started | `K` |
+| `vim` | Vim and Neovim frontends, both through a relay job (`kskk connect`) to the engine host; Neovim over LuaJIT FFI is the fallback if the relay misses the 10 ms p99 criterion (ADR-0007). Ready before October 2027. | not started | `V` |
 | `fcitx5` | Linux frontend, unless the engine ADR adopts cskk and fcitx5-cskk covers it. | not started | `F` |
 | `windows` | TSF text service in Rust with windows-rs. | not started | `W` |
 | `android` | InputMethodService over JNI. | not started | `A` |
@@ -27,7 +27,7 @@ One Rust engine used by every frontend, thin frontends, and a user-dictionary st
 
 The owner asked on 2026-11-06 for a structure in which parts can be replaced: "I think clean or layered architecture is needed to separate to change parts of programs. and consider event-driven". ADR-0009 records the design. The starting point is:
 
-- The engine's center is a pure state machine: `(state, input event) -> (next state, output events)`. Input events are keys, focus, reset, and config changes. Output events are preedit changes, committed text, candidate lists, mode changes, and learning (add, promote, delete). Files, time, and I/O stay outside the center.
+- The engine's center is a pure state machine: `(state, input event) -> (next state, output events)`. Input events are keys, direct text, and commands (ADR-0009); losing focus maps to `Reset` or `Commit`, and a config change is not an input event. Output events are preedit changes, committed text, candidate lists, mode changes, and learning (add, promote, delete). Files, time, and I/O stay outside the center.
 - The key path has no asynchronous event bus. The same input events always give the same output events, so conformance cases replay exactly and per-key latency stays small.
 - Learning events from the engine are the records of the `jisyo` log, and conformance cases are written as input and output events.
 - Layers sit only where two or more real implementations exist: frontends, dictionary sources, encodings, sync transports, and the exporters and importers for each current IME. A layer with one implementation is not added.
@@ -45,7 +45,7 @@ Each step ends with a check. Do not start a step before its check passes, except
 | 2 | Dictionary formats and the user-dictionary store | `jisyo` | `make check` passes. Synthetic dictionaries round-trip byte for byte in all four encodings. Merging the logs of two machines gives the same dictionary in either order. Importing a legacy file that differs from the last export gives the expected add, promote, and delete events. Runs alongside step 3. |
 | 3 | Behavior contract and engine comparison | `conformance`, `docs/adr` | The case format has an ADR. The cases cover the basic chapter of the ddskk manual. The runner prints a pass table for at least two existing engines (libskk is installed here). The engine ADR is Proposed with that table. |
 | 4 | Bridge for the current IMEs | `jisyo` | `jisyo` exports the merged dictionary for CorvusSKK, fcitx5-skk, and skkeleton. It writes the owner's real files only after the owner approves (question 6). |
-| 5 | Engine | `core` | Needs the owner's answers to questions 1 and 3. The conformance pass rate meets the target in the engine ADR. A C program calls the C ABI in the gate. |
+| 5 | Engine | `core` | Needs the owner's answers to questions 1 and 3. The conformance pass rate meets the target in the engine ADR. A C program calls the C ABI (`kskk_call`) in the gate. |
 | 6 | Vim and Neovim frontend | `vim` | Conformance cases pass through the frontend. Per-key latency is measured and reported. The owner uses it in place of skkeleton. Before October 2027. |
 | 7 | Linux frontend | `fcitx5` | Conformance cases pass through the frontend. The owner uses it in place of fcitx5-skk. |
 | 8 | Windows frontend | `windows` | Needs a way to test on Windows (question 7). Conformance cases pass through the TSF frontend. |
@@ -59,7 +59,7 @@ The manager asks these together. Work continues on the default until the owner a
 2. **Linux framework.** Answered on 2026-11-06: "2: Ok". No other Linux machine uses IBus, so only an fcitx5 frontend is built. An IBus frontend can be added later on the same engine.
 3. **Behavior reference.** Answered on 2026-11-06: "3: a is ok. but I consider separate `classic` mode (default) and custom mode (can change the behaviours), and add config is loadmap for future (now we only have `empty` custom mode setting and same as classic." ddskk's default behavior is the reference as the `classic` mode. A `custom` mode exists with an empty setting set and behaves like `classic`; settings are on the roadmap (ADR-0002, Accepted).
 4. **File sync between machines.** Answered on 2026-11-06: "4: I think it will be server like `yaskkserv2`. and I think local cache is needed for the case we can't connect to server because of offline or server disconnected." Sync goes through a personal server, and each machine keeps its own log as a local cache (ADR-0006, Proposed). Where the server runs, how machines reach it, and who may read it are open: issue https://github.com/kkiyama117/kskk/issues/5.
-5. **Vim or Neovim.** Decided without the owner: both, because both are installed here. Neovim through LuaJIT FFI, Vim through a job.
+5. **Vim or Neovim.** Decided without the owner: both, because both are installed here. Both through one relay to the engine host; Neovim over LuaJIT FFI is the fallback (ADR-0007).
 6. **Your real dictionaries.** Answered on 2026-11-06: "6: ok. as you do." Our tool may read copies of `~/.local/share/fcitx5/skk/user.dict`, `~/.skkeleton`, and the CorvusSKK `userdict.txt` to test import and merge. No model sees the contents, and the tool reports counts only. Writing to the owner's IME files still needs the owner's approval.
 7. **Windows testing.** Can agents reach a Windows machine (for example over SSH), or do you test the Windows build by hand? Asked before step 8.
 8. **Android.** Which phone, and do you use a hardware keyboard or a flick keyboard? Asked before step 9.
