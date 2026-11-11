@@ -510,7 +510,7 @@ Each row is one test function in `bin/test_ci_workflow.py`.
 | `test_ci_has_only_declared_steps` | Exactly three steps, with keys uses/with, uses/with, run/shell in that order, and no extra step. |
 | `test_ci_job_uses_the_selected_runner` | Exactly one job check with runs-on ubuntu-latest. |
 | `test_ci_runs_the_parent_gate` | The job's bash run step uses exactly the parent gate, with no alternate child gate. |
-| `test_ci_gate_runs_at_repository_root` | Workflow, job and step do not redirect working-directory outside repository root. |
+| `test_ci_gate_runs_at_repository_root` | Assert that no mapping anywhere in the workflow contains a defaults key or a working-directory key, including the workflow, every job and every step. Reject either key even when its value is empty or points to . or bin inside the repository. |
 | `test_ci_cannot_skip_the_gate` | No job/gate if condition. |
 | `test_ci_cannot_ignore_gate_failure` | No job/gate continue-on-error setting. |
 | `test_ci_gate_succeeds_on_a_passing_project` | Execute declared run command in synthetic passing project; status 0. |
@@ -523,7 +523,11 @@ Must fail without: disabled credential persistence → `test_ci_checks_out_witho
 Must fail without: pull_request trigger field → `test_ci_runs_on_pull_requests`.
 Must fail without: parent gate step → `test_ci_runs_the_parent_gate`.
 
-For these configuration guard checks, remove the named field or step from a saved workflow copy, run its named test, then restore and cmp the original. The test must fail on the missing public configuration, not on a JSON parse error or a missing fixture. The tests for forbidden events, conditions and failure masking also assert that those fields are absent; do not describe adding such a forbidden field as removal of an existing code guard.
+Guard-check input is the actual .github/workflows/check.yml in the assigned implementation worktree, the same declared workflow path that the named tests read. Before each check, save a byte-for-byte backup, apply only that check's mutation to the actual workflow, and run its named test. The saved copy is only for restoring the actual workflow and checking byte equality with cmp after each check, before the next mutation. The tests themselves never modify the workflow.
+
+For test_ci_checkout_is_pinned, replace only the checkout uses value actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 with actions/checkout@v7.0.1. For test_ci_python_setup_is_pinned, replace only the setup uses value actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 with actions/setup-python@v7.1.0. Keep both action steps and their uses keys present; these checks must fail because the reference is mutable, not because the action is missing. For the other guard lines, remove the named field or step from the actual workflow.
+
+Every mutation must leave the workflow parseable by the declared comment-removal/JSON reader and preserve unrelated configuration. The named test must fail for the specified guard change, not a parse, import or fixture error. The tests for forbidden events, conditions and failure masking also assert that those fields are absent; do not describe adding such a forbidden field as removal of an existing code guard.
 
 Done: the parent gate exits 0 in the worker worktree, each named guard check fails for its stated reason when removed, and the manager observes this workflow's check reported for T3's PR head, running the merge result with main, before merging. The lead cannot verify GitHub Actions locally. Completion is the implementation commit's ancestry in origin/main after the manager's fetch. No direct main commit or local main merge.
 
