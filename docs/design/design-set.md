@@ -168,5 +168,5 @@ AfterPurgeは削除の確認を完了した状態を示す。確認後の具体�
 
 - V1はWindowsの保存先とAppContainer/pipe、V2はTSFのキー消費、V3はeditor relay、V4はAndroidのcommitとキー順序、V5は採用候補のAPI、V6はfcitx5の同期IPCである。V1/V2はWカード前、V3/V6は該当frontendの初期カードで検証する。
 - WindowsとAndroidの動作を、古いcross buildやcargo checkだけで確認済みとしない。材料の範囲はADR-0004に記した。
-- 起動排他、通信の長さ・期限・エラーと切断契約、保存の障害モデル、設定の再構築をKカード前に固定する。
+- First sliceのS0では[embedded JSON契約](s0-embedded-protocol.md)を先に固定する。framing上限、認証、起動時のログ所有lock、接続とsessionの所有、deadlines、要求IDと再送は、socketを開くS5へ分ける。保存の障害モデルはstoreを使うS7で検証する。
 - PLANとoverviewの配置記述、jisyo/SPEC.mdのログ所有者の記述は、managerとjisyo leadの更新対象である。今回の変更範囲には含めない。
