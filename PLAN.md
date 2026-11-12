@@ -22,7 +22,7 @@ One Rust engine used by every frontend, thin frontends, and a user-dictionary st
 | `fcitx5` | Linux frontend, unless the engine ADR adopts cskk and fcitx5-cskk covers it. | not started | `F` |
 | `windows` | TSF text service in Rust with windows-rs. | not started | `W` |
 | `android` | InputMethodService over JNI. | not started | `A` |
-| `server` | `skk-server`: the sync server for learning records (ADR-0006). Central first, with a protocol that does not assume a central peer, so machines can later sync peer to peer (`docs/decisions/sync-topology.md`, option (c), decided by the owner on 2026-11-12). | not started | `Y` |
+| `server` | `skk-server`: the sync server for learning records (ADR-0006). Central first, with a protocol that does not assume a central peer, so machines can later sync peer to peer (`docs/decisions/sync-topology.md`, option (c), decided by the owner on 2026-11-12). Built as a module system (the owner: "make it as a `module` system."): sync is one module, and skkserv-style lookups can be added later as another module. | not started | `Y` |
 
 ### Structure
 
@@ -76,7 +76,7 @@ The owner, 2026-11-12, after the design revision (D1 to D8) landed: 「その上
 
 | # | Slice | Check |
 |---|---|---|
-| Y0 | Sync protocol spec (skk-design): records up and down, authentication, encryption, acknowledgement, retry; no assumption that the peer is a central server | A worker cannot misread it (ambiguity review) |
+| Y0 | Server module boundary and sync protocol spec (skk-design): how a module plugs into skk-server; the sync module's records up and down, authentication, encryption, acknowledgement, retry; no assumption that the peer is a central server | A worker cannot misread it (ambiguity review) |
 | Y1 | `skk-server` stores and serves records by (machine, seq) | Synthetic records on localhost: an identical resend is kept once, a conflict is refused, fetch returns only what is missing |
 | Y2 | The sync client in kskkd | Sends the own log and fetches the others without blocking a key |
 | Y3 | Two simulated machines | The same dictionary in any order and after a disconnect |
