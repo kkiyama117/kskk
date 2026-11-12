@@ -17,8 +17,8 @@ One Rust engine used by every frontend, thin frontends, and a user-dictionary st
 |---|---|---|---|
 | `jisyo` | Rust crate and CLI. Reads and writes SKK-JISYO text in EUC-JP, EUC-JIS-2004, UTF-8, and UTF-16LE with BOM, with okuri blocks, annotations, and `(concat ...)` escapes. Holds the user-dictionary store: one append-only log per machine, a merge that gives the same result in any order, and import from and export to the user dictionaries of CorvusSKK, fcitx5-skk, ibus-skk, and skkeleton. | `skk-jisyo` | `J` |
 | `conformance` | Behavior cases (keys and dictionaries in, expected preedit, commit, and mode out) and a runner that drives an engine through a small adapter. The cases define "the same behavior". The first adapters drive engines that already exist, so the cases are checked before our engine exists. | `skk-design` | `C` |
-| `core` | The pure engine and the engine host (ADR-0009): one host per user per machine (`kskkd` over a Unix socket or named pipe on Linux and Windows, embedded in the IME on Android) is the only writer of the machine's log. Frontends speak one request and reply protocol; the C ABI carries bytes (`kskk_call`). Built or adopted after the engine ADR (ADR-0004). | not started | `K` |
-| `vim` | Vim and Neovim frontends, both through a relay job (`kskk connect`) to the engine host; Neovim over LuaJIT FFI is the fallback if the relay misses the 10 ms p99 criterion (ADR-0007). Ready before October 2027. | not started | `V` |
+| `core` | The pure engine and the engine host (ADR-0009): one host per user per machine (`kskkd` over a Unix socket or named pipe on Linux and Windows, embedded in the IME on Android) is the only writer of the machine's log. Frontends speak one request and reply protocol; the C ABI carries bytes (`kskk_call`). Started on 2026-11-12 as the new-core prototype of ADR-0004 Action Item 2 (section "First slice"); ADR-0004 stays Proposed. | `skk-core` | `K` |
+| `vim` | Vim and Neovim frontends, both through a relay job (`kskk connect`) to the engine host; Neovim over LuaJIT FFI is the fallback if the relay misses the 10 ms p99 criterion (ADR-0007). Ready before October 2027. The first frontend (section "First slice"). | `skk-core` | `V` |
 | `fcitx5` | Linux frontend, unless the engine ADR adopts cskk and fcitx5-cskk covers it. | not started | `F` |
 | `windows` | TSF text service in Rust with windows-rs. | not started | `W` |
 | `android` | InputMethodService over JNI. | not started | `A` |
@@ -45,11 +45,33 @@ Each step ends with a check. Do not start a step before its check passes, except
 | 2 | Dictionary formats and the user-dictionary store | `jisyo` | `make check` passes. Synthetic dictionaries round-trip byte for byte in all four encodings. Merging the logs of two machines gives the same dictionary in either order. Importing a legacy file that differs from the last export gives the expected add, promote, and delete events. Runs alongside step 3. |
 | 3 | Behavior contract and engine comparison | `conformance`, `docs/adr` | The case format has an ADR. The cases cover the basic chapter of the ddskk manual. The runner prints a pass table for at least two existing engines (libskk is installed here). The engine ADR is Proposed with that table. |
 | 4 | Bridge for the current IMEs | `jisyo` | `jisyo` exports the merged dictionary for CorvusSKK, fcitx5-skk, and skkeleton. It writes the owner's real files only after the owner approves (question 6). |
-| 5 | Engine | `core` | Needs the owner's answers to questions 1 and 3. The conformance pass rate meets the target in the engine ADR. A C program calls the C ABI (`kskk_call`) in the gate. |
-| 6 | Vim and Neovim frontend | `vim` | Conformance cases pass through the frontend. Per-key latency is measured and reported. The owner uses it in place of skkeleton. Before October 2027. |
+| 5 | Engine | `core` | Starts before step 3's check and runs beside steps 2 and 3 (the owner, 2026-11-12, section "First slice"). Needs the owner's answers to questions 1 and 3. The conformance pass rate meets the target in the engine ADR. A C program calls the C ABI (`kskk_call`) in the gate. |
+| 6 | Vim and Neovim frontend | `vim` | Overlaps step 5 (section "First slice"). Conformance cases pass through the frontend. Per-key latency is measured and reported. The owner uses it in place of skkeleton. Before October 2027. |
 | 7 | Linux frontend | `fcitx5` | Conformance cases pass through the frontend. The owner uses it in place of fcitx5-skk. |
 | 8 | Windows frontend | `windows` | Needs a way to test on Windows (question 7). Conformance cases pass through the TSF frontend. |
 | 9 | Android frontend | `android` | Needs the owner's phone details (question 8). |
+
+## First slice
+
+The owner, 2026-11-12, after the design revision (D1 to D8) landed: 「その上で、coreとどれか1つの実装から進めたい。」 So `core` and one frontend start now, before step 3's check. Steps 2 and 3 continue beside them.
+
+- The first frontend is Vim and Neovim. It has the only dated constraint (Deno, October 2027), and nothing blocks testing it here. Windows waits for question 7, Android for question 8, and fcitx5 for the owner's approval to load an addon into the running fcitx5.
+- This is not a choice of engine. ADR-0004 stays Proposed; the new core is its Action Item 2 (a prototype measured with the same conformance table as the existing engines).
+- Slices, each with its own check (skk-planner's plan of 2026-11-12):
+
+| # | Slice | Check |
+|---|---|---|
+| S0 | Contract of the embedded path: request and reply JSON, key encoding, View, errors, `hello`. Socket limits, authentication, the startup lock, and deadlines move to S5 | A worker cannot misread the contract (ambiguity review) |
+| S1 | Latency with a fake host (ADR-0007 V3) | Median and p99 for headless Vim and Neovim at 100 ms and 20 ms key intervals. If p99 misses 10 ms, return to ADR-0007 before S5 |
+| S2 | Pure core without lookup | Tests through public `step` and `wants`; the pure crate uses no file, network, clock, thread, or environment |
+| S3 | Embedded host and conformance adapter | The runner's pass table has a column for our engine. Needs C2 and a UTF-8 dictionary reader from `jisyo` |
+| S4 | Conversion, okuri, candidates | The listed cases of files 04, 05, 07 pass |
+| S5 | Engine host, socket, relay | The adapter through `kskk connect` gives the same table as S3. Security review |
+| S6 | The Vim and Neovim plugin | Conformance cases pass through headless Vim and Neovim; latency measured with the real engine |
+| S7 | Registration, learning, purge | Files 06 and 08 pass; learning survives a restart. Needs the `jisyo` store |
+| S8 | The owner tries it beside skkeleton | The owner turns it on by hand |
+
+- Step 5's check names the C ABI. It stays until S1 reports. If the relay meets the criterion, the C ABI check moves to the first frontend that links it (fcitx5).
 
 ## Decisions waiting on the owner
 
