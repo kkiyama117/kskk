@@ -72,7 +72,7 @@ The owner, 2026-11-12, after the design revision (D1 to D8) landed: 「その上
 | S7 | Registration, learning, purge | Files 06 and 08 pass; learning survives a restart. Needs the `jisyo` store |
 | S8 | The owner tries it beside skkeleton | The owner turns it on by hand |
 
-- The owner, 2026-11-12, through kstack-manager: 「まずprivateでやろうか。あと、skk-coreとskk-server, skk-vimの3つで、skk のserverとvimで。」 and 「2: (イ) です。kskkdも要るとは思いますが。」 So the first slice also builds the sync server. A word learned in Vim on one machine must convert on another. Vim talks only to kskkd; kskkd runs the sync client. The server track:
+- The owner, 2026-11-12, through kstack-manager: 「まずprivateでやろうか。あと、skk-coreとskk-server, skk-vimの3つで、skk のserverとvimで。」 and 「2: (イ) です。kskkdも要るとは思いますが。」 So the first slice also builds the sync server. A word learned in Vim on one machine must convert on another. Vim talks only to kskkd; kskkd runs the sync client. The server runs on boiled (this machine) during development; the eventual place is a remote VPS or a Raspberry Pi on Tailscale (the owner, 2026-11-12; issue #5). The server track:
 
 | # | Slice | Check |
 |---|---|---|

@@ -2,7 +2,7 @@
 
 - 日付: 2026-11-12
 - 書いた人: skk-manager
-- 状態: 1と3は決定 (所有者、2026-11-12、kstack-manager 経由:「skk, 同期はCで.」、3について「make it as a `module` system.」)。2 (動かす場所、kskk#5) は判断待ち
+- 状態: 1と3は決定 (所有者、2026-11-12、kstack-manager 経由:「skk, 同期はCで.」、3について「make it as a `module` system.」)。2も決定 (所有者、2026-11-12、kstack-manager 経由:「最終的にはremote の VPSか、tailscaleで繋がったraspberry pi」「開発中は boiledに置きます」)。開発中はこの機械 boiled で動かす。最後の置き場所は VPS か Tailscale でつながる Raspberry Pi で、どちらかはまだ選んでいない。Y0 と Y1 はどちらでも、また試験ではローカルでも動くようにする
 - 3の答え: skk-server はモジュールの仕組みとして作る。学習の同期は1つのモジュールで、skkserv 形式の検索はあとから足せる別のモジュールにする。同期に組み込まない
 
 ## 前提

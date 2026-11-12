@@ -20,7 +20,7 @@ Above the manager, `kstack-manager` in the herdr `default` session coordinates t
 | `skk-jisyo` | DSH `openai-codex gpt-6.1-sol high` | The `jisyo/` repository (cards `J1`...) |
 | `skk-core` | DSH `openai-codex gpt-6.1-sol high` | The `core/` and `vim/` repositories (cards `K1`... and `V1`...), from 2026-11-12 (PLAN.md "First slice") |
 
-Card IDs are unique across repositories: `T` tools, `C` conformance, `J` jisyo, `K` core, `V` vim, `F` fcitx5, `W` windows, `A` android.
+Card IDs are unique across repositories: `T` tools, `C` conformance, `J` jisyo, `K` core, `V` vim, `Y` server, `F` fcitx5, `W` windows, `A` android.
 
 A lead writes only in the paths its brief names. A lead does not start DSH workers itself: it writes the worker's brief to a file and asks `skk-manager`, which runs `run-worker.sh` and returns the answer and log paths next turn. Keep three levels at most: the manager, the leads, and the workers. Every message between agents starts with the sender's name and a colon (`skk-jisyo: ...`). A lead's message is a report, not an approval from the owner.
 
@@ -64,6 +64,11 @@ The owner chose on 2026-11-06 to manage the work on GitHub, with public reposito
 | `/data/softwares/skk` | https://github.com/kkiyama117/kskk |
 | `/data/softwares/skk/jisyo` | https://github.com/kkiyama117/skk-jisyo |
 | `/data/softwares/skk/conformance` | https://github.com/kkiyama117/skk-conformance |
+| `/data/softwares/skk/core` | https://github.com/kkiyama117/skk-core (private) |
+| `/data/softwares/skk/server` | https://github.com/kkiyama117/skk-server (private, empty) |
+| `/data/softwares/skk/vim` | https://github.com/kkiyama117/skk-vim (private) |
+
+The owner chose on 2026-11-12 to start `skk-core`, `skk-server`, and `skk-vim` as private repositories (「まずprivateでやろうか。」).
 
 Only `skk-manager` talks to GitHub: it pushes, opens and merges pull requests, and files issues. Leads and workers never push and never hold GitHub credentials.
 
