@@ -126,7 +126,9 @@ focusやアプリのcomposition終了をResetとCommitのどちらに写すか�
 
 輸送路はUTF-8のJSONを使う。C ABIも型付きの構造体を言語ごとに公開せず、不透明なhandleと長さ付きbyte列を運ぶ。仮の関数名はkskk_abi_version、kskk_open、kskk_call、kskk_free、kskk_closeとする。原案9節は「4つ」と書く一方でこの関数群を列挙しているため、ここでは列挙された名前を採る。embeddedとconnectの選択はopen側で行い、呼ぶ側の要求とReplyは共通にする。返事のメモリはライブラリが確保しfreeで返す。コールバックは設けず、外部入口でpanicを捕捉する。
 
-ストリームの枠は、長さを表す4 byteのlittle-endian値とJSONとする。これは推定: 提案する設計値であり、計測値ではない。長さの上限、session/要求ID、エラーコード、期限、切断時の再試行契約はKカードの契約で固定する。上限を無制限にして出荷しない。成否不明のkey要求を黙って再送せず、期限切れ後に遅れて届いたReplyを描画しない。確定文字列の重複適用と、記録の再送の重複除去は別の問題として検査する。
+First sliceのS0は、プロセス内の要求と返事のJSON、Key、View、hello、エラーを先に固定する。[S0 embedded契約](../design/s0-embedded-protocol.md)を使い、この段階ではprefixを付けずsocketを開かない。C ABIの実装要否はS1の測定結果と最初にlinkするfrontendで判断する。
+
+ストリームの枠は、長さを表す4 byteのlittle-endian値とJSONをS5の検証案とする。これは推定: 提案する設計値であり、計測値ではない。framing上限、接続認証、起動時のログ所有lock、接続とsessionの所有、要求ID、期限、切断時の再送契約はS5で、socketを開く前に固定する。S0のsession IDだけで接続認証を済ませたと解釈しない。上限を無制限にして出荷しない。成否不明のkey要求を黙って再送せず、期限切れ後に遅れて届いたReplyを描画しない。確定文字列の重複適用と、記録の再送の重複除去は別の問題として検査する。
 
 #### 登録とpurge確認の所有者
 
@@ -207,7 +209,8 @@ jisyo側のapplyとmergeによる注釈保持も、別の公開関数試験で�
 
 ## Action Items
 
-1. [ ] Kカード前にprotocol/ABI、接続認証、起動排他、保存失敗と再送の契約を固定する
-2. [ ] V1とV2をWカード前に確認し、V3とV6を各frontendの最初の検証へ入れる
-3. [ ] D8の通常確認とadapterの内部承認を、別の公開API試験で検査する
-4. [ ] jisyo leadへログ所有者の変更を渡す。LearnEvent、LogRecord、merge、applyの型と意味は維持する
+1. [ ] S0でembedded要求/ReplyのJSON、Key、View、hello、errorを固定し、skk-coreのSPECと型へ渡す。C ABIの実装はS1後の判断とし、先に必須化しない
+2. [ ] S5でframing上限、接続認証、起動時のログ所有lock、接続とsessionの所有、deadlines、要求ID、再送を固定し、socketを開く前に検査する。保存失敗の詳細はstoreを使うS7で検証する
+3. [ ] V1とV2をWカード前に確認し、V3とV6を各frontendの最初の検証へ入れる
+4. [ ] D8の通常確認とadapterの内部承認を、別の公開API試験で検査する
+5. [ ] jisyo leadへログ所有者の変更を渡す。LearnEvent、LogRecord、merge、applyの型と意味は維持する
