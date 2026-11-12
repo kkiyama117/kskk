@@ -18,6 +18,7 @@ Above the manager, `kstack-manager` in the herdr `default` session coordinates t
 | `skk-design` | DSH `openai-codex gpt-6.1-sol high` | `docs/adr/`, `docs/design/`, and the `conformance/` repository (cards `C1`...) |
 | `skk-tools` | DSH `openai-codex gpt-6.1-sol high` | `bin/` (the dispatcher and its tests), `AGENTS.md`, and the "Card flow adapter" section below (cards `T1`...) |
 | `skk-jisyo` | DSH `openai-codex gpt-6.1-sol high` | The `jisyo/` repository (cards `J1`...) |
+| `skk-core` | DSH `openai-codex gpt-6.1-sol high` | The `core/` and `vim/` repositories (cards `K1`... and `V1`...), from 2026-11-12 (PLAN.md "First slice") |
 
 Card IDs are unique across repositories: `T` tools, `C` conformance, `J` jisyo, `K` core, `V` vim, `F` fcitx5, `W` windows, `A` android.
 
