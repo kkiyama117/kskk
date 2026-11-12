@@ -483,7 +483,7 @@ The worker changes only the workflow and its tests. `bin/TASKS.md` is lead-only.
 
 ### Workflow contract
 
-1. The workflow's name is `check`. Its event is `pull_request` with no branch, path or activity-type filter, and no `pull_request_target` trigger. It runs the parent gate on every pull request, not the Rust child gates. Workflow token permissions are exactly contents read. It does not use secrets, upload artifacts, publish, or push.
+1. The workflow's name is `check`. Its event is `pull_request` with no branch, path or activity-type filter, and no `pull_request_target` trigger. It runs the parent gate on every pull request, not the Rust child gates. Workflow-root token permissions are exactly contents read, with no job-level override. No job may contain a permissions key, even with an empty mapping or a read-only value. It does not use secrets, upload artifacts, publish, or push.
 2. One job named `check` runs on `ubuntu-latest`. It checks out the PR's tested revision with credentials persistence disabled, sets up Python, then runs exactly `python3 -m unittest discover -s bin -p 'test_*.py'` from repository root in a bash step. Do not use continue-on-error or an if condition on the job or gate. No pip packages, real workers or network-using tests.
 3. Python version is exactly `3.15.2`. This matches the local interpreter version recorded by the manager for the standard-library-only gate. The manager's evidence lists Linux x64 builds for Ubuntu 22.04, 24.04 and 26.04, and identifies ubuntu-latest as Ubuntu 24.04. This supports the selected CI runner and version; it is not a claim that this workflow has run or that every Python version is supported. Do not silently substitute another version.
 4. Pin checkout as `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1`, with the full-line YAML comment `# actions/checkout v7.0.1` immediately before its uses property. Pin Python setup as `actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0`, with the full-line YAML comment `# actions/setup-python v7.1.0` immediately before its uses property. Use the SHA, never the mutable version tag, as the action reference.
@@ -498,7 +498,8 @@ Each row is one test function in `bin/test_ci_workflow.py`.
 |---|---|
 | `test_ci_runs_on_pull_requests` | Declared on event has unfiltered pull_request. |
 | `test_ci_avoids_privileged_pull_request_target` | No pull_request_target event is declared. |
-| `test_ci_token_is_read_only` | Workflow permissions are exactly contents read. |
+| `test_ci_token_is_read_only` | Workflow-root permissions are exactly contents read. |
+| `test_ci_jobs_cannot_override_token_permissions` | Assert that every job lacks a permissions key. Check key absence, not whether a supplied value is empty, read-only or write-enabled. This test checks only the job-level override prohibition. |
 | `test_ci_checkout_is_pinned` | First step uses exactly actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1, not a tag. |
 | `test_ci_checkout_version_comment` | The raw line immediately before checkout's uses property is exactly the full-line comment # actions/checkout v7.0.1, after stripping indentation. |
 | `test_ci_checks_out_without_persisting_credentials` | Checkout's persist-credentials is false. |
@@ -518,14 +519,15 @@ Each row is one test function in `bin/test_ci_workflow.py`.
 
 Must fail without: pinned checkout action reference → `test_ci_checkout_is_pinned`.
 Must fail without: pinned Python setup action reference → `test_ci_python_setup_is_pinned`.
-Must fail without: read-only token permission → `test_ci_token_is_read_only`.
+Must fail without: workflow-root read-only token permission → `test_ci_token_is_read_only`.
+Must fail without: job-level token-permission override prohibition → `test_ci_jobs_cannot_override_token_permissions`.
 Must fail without: disabled credential persistence → `test_ci_checks_out_without_persisting_credentials`.
 Must fail without: pull_request trigger field → `test_ci_runs_on_pull_requests`.
 Must fail without: parent gate step → `test_ci_runs_the_parent_gate`.
 
 Guard-check input is the actual .github/workflows/check.yml in the assigned implementation worktree, the same declared workflow path that the named tests read. Before each check, save a byte-for-byte backup, apply only that check's mutation to the actual workflow, and run its named test. The saved copy is only for restoring the actual workflow and checking byte equality with cmp after each check, before the next mutation. The tests themselves never modify the workflow.
 
-For test_ci_checkout_is_pinned, replace only the checkout uses value actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 with actions/checkout@v7.0.1. For test_ci_python_setup_is_pinned, replace only the setup uses value actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 with actions/setup-python@v7.1.0. Keep both action steps and their uses keys present; these checks must fail because the reference is mutable, not because the action is missing. For the other guard lines, remove the named field or step from the actual workflow.
+For test_ci_checkout_is_pinned, replace only the checkout uses value actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 with actions/checkout@v7.0.1. For test_ci_python_setup_is_pinned, replace only the setup uses value actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 with actions/setup-python@v7.1.0. Keep both action steps and their uses keys present; these checks must fail because the reference is mutable, not because the action is missing. For test_ci_jobs_cannot_override_token_permissions, add permissions {'contents': 'write'} to the existing check job while retaining workflow-root permissions {'contents': 'read'} and all existing job fields. This valid but unsafe configuration bypasses the absent-override restriction; it is not deletion of an existing code guard. The named job-override test must fail for the added mapping. For the remaining guard lines, remove the named field or step from the actual workflow.
 
 Every mutation must leave the workflow parseable by the declared comment-removal/JSON reader and preserve unrelated configuration. The named test must fail for the specified guard change, not a parse, import or fixture error. The tests for forbidden events, conditions and failure masking also assert that those fields are absent; do not describe adding such a forbidden field as removal of an existing code guard.
 
